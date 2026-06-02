@@ -1,12 +1,6 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import type { Metadata } from "next"
-
-export const metadata: Metadata = {
-  title: "Knihovna objednávek | LayalaStudio",
-  description: "Správa a historie objednávek s filtrováním, detaily a jednoduchou simulací storna.",
-}
 
 type OrderStatus = "Doručeno" | "Rozpracováno" | "Čekající" | "Stornováno"
 
