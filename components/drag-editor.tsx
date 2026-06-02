@@ -117,15 +117,34 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
   const canvasAreaRef = useRef<HTMLDivElement | null>(null)
   const [items, setItems] = useState<CanvasItem[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedPaletteId, setSelectedPaletteId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [selectedView, setSelectedView] = useState<ViewMode>("front")
   const [selectedCategory, setSelectedCategory] = useState<string>("Velké mašle")
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
   const pointerState = useRef<PointerState>(null)
   const nextId = useRef(1)
 
   const categories = Array.from(new Set(paletteItems.map((item) => item.category)))
   const filteredItems = paletteItems.filter((item) => item.category === selectedCategory)
+
+  useEffect(() => {
+    const updateIsMobile = () => {
+      setIsMobile(window.matchMedia("(max-width: 767px)").matches)
+    }
+
+    updateIsMobile()
+    const mql = window.matchMedia("(max-width: 767px)")
+    const listener = (event: MediaQueryListEvent) => setIsMobile(event.matches)
+    mql.addEventListener?.("change", listener)
+    mql.addListener?.(listener)
+
+    return () => {
+      mql.removeEventListener?.("change", listener)
+      mql.removeListener?.(listener)
+    }
+  }, [])
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -242,7 +261,31 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
   }
 
   const handlePaletteItemClick = (item: PaletteItem) => {
+    if (isMobile) {
+      setSelectedPaletteId(item.id)
+      return
+    }
+
     addItemToCanvas(item)
+  }
+
+  const handleCanvasClick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (selectedPaletteId) {
+      const paletteItem = paletteItems.find((item) => item.id === selectedPaletteId)
+      const canvasArea = canvasAreaRef.current
+      if (paletteItem && canvasArea) {
+        const rect = canvasArea.getBoundingClientRect()
+        const x = event.clientX - rect.left - 48
+        const y = event.clientY - rect.top - 48
+        addItemToCanvas(paletteItem, x, y)
+      }
+      setSelectedPaletteId(null)
+      return
+    }
+
+    if (!(event.target as HTMLElement).closest(".canvas-item")) {
+      setSelectedId(null)
+    }
   }
 
   const handleItemPointerDown = (event: ReactPointerEvent<HTMLDivElement>, itemId: string) => {
@@ -331,12 +374,6 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
     generatePreviewImage()
   }, [items, selectedView])
 
-  const handleCanvasClick = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!(event.target as HTMLElement).closest(".canvas-item")) {
-      setSelectedId(null)
-    }
-  }
-
   return (
     <div className={`drag-editor${compact ? " compact" : ""}`}>
       <div className="editor-header">
@@ -369,10 +406,10 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
             {filteredItems.map((item) => (
               <div
                 key={item.id}
-                className="item-card"
+                className={`item-card ${selectedPaletteId === item.id ? "selected" : ""}`}
                 role="button"
                 tabIndex={0}
-                draggable
+                draggable={!isMobile}
                 onClick={() => handlePaletteItemClick(item)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
@@ -388,6 +425,17 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
                 </div>
               </div>
             ))}
+          </div>
+          <div className="mobile-hint">
+            {isMobile ? (
+              selectedPaletteId ? (
+                <p>Klepněte do plátna v místě, kde chcete dekoraci umístit.</p>
+              ) : (
+                <p>Klepněte na dekoraci pro výběr, pak klepněte na plátno.</p>
+              )
+            ) : (
+              <p>Klikněte a přetáhněte dekoraci do plátna, nebo klepněte pro rychlé vložení.</p>
+            )}
           </div>
         </aside>
 
@@ -598,6 +646,11 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           user-select: none;
         }
 
+        .item-card.selected {
+          border-color: #0ea5e9;
+          background: #e0f2fe;
+        }
+
         .item-card:hover,
         .item-card:focus-visible {
           transform: translateY(-1px);
@@ -624,6 +677,16 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
         .canvas-body {
           padding: 1.5rem;
           min-height: 640px;
+        }
+
+        .mobile-hint {
+          padding: 0 1.5rem 1rem;
+          color: #475569;
+          font-size: 0.95rem;
+        }
+
+        .mobile-hint p {
+          margin: 0;
         }
 
         .drop-zone {
@@ -653,6 +716,16 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           background: #f1f5f9 no-repeat center/contain;
           box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.14);
           transition: background 300ms ease, box-shadow 300ms ease;
+        }
+
+        .canvas-item {
+          position: absolute;
+          border-radius: 22px;
+          cursor: grab;
+          touch-action: none;
+          user-select: none;
+          transform-origin: center;
+          transition: transform 180ms ease;
         }
 
         .canvas-area {
@@ -840,6 +913,17 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
 
           .canvas-body {
             padding: 1.25rem;
+          }
+        }
+
+        @media (max-width: 820px) {
+          .canvas-inner {
+            width: 100%;
+            max-width: 100%;
+          }
+
+          .drop-zone {
+            min-height: 460px;
           }
         }
 

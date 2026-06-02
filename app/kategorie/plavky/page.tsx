@@ -3,7 +3,7 @@ import { products } from "@/lib/products"
 import { ProductCard } from "@/components/product-card"
 
 export const metadata: Metadata = {
-  title: "Plavky | LaylaStudio",
+  title: "Plavky | LayalaStudio",
   description: "Prohlédněte si naši kolekci prémiových plavek. Jednodílné plavky a bikini v různých barvách a velikostech.",
 }
 

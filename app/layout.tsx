@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'LaylaStudio | Personalizované plavky',
-  description: 'LaylaStudio — Vytváříme jedinečné personalizované plavky s vlastními návrhy. Elegance, kvalita a kreativita.',
+  title: 'LayalaStudio | Personalizované plavky',
+  description: 'LayalaStudio — Vytváříme jedinečné personalizované plavky s vlastními návrhy. Elegance, kvalita a kreativita.',
 }
 
 export default function RootLayout({

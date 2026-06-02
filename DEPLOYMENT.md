@@ -1,4 +1,4 @@
-# LaylaStudio — Deployment Instrukce
+# LayalaStudio — Deployment Instrukce
 
 ## Build Status
 ✅ Projekt je připraven k nasazení  
@@ -51,8 +51,8 @@ CMD ["npm", "start"]
 
 **Kroky:**
 ```bash
-docker build -t laylastudio .
-docker run -p 3000:80 laylastudio
+docker build -t layalastudio .
+docker run -p 3000:80 layalastudio
 ```
 
 ### 4. **Environment Variables**
@@ -106,4 +106,4 @@ git push origin main
 
 ---
 
-**Podpora:** Kontaktujte info@laylastudio.cz
+**Podpora:** Kontaktujte info@layalastudio.cz
