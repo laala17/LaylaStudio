@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { ShoppingBag, Menu, ArrowLeft } from "lucide-react"
+import { ShoppingBag, Menu, ArrowLeft, Clock3 } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -39,6 +39,14 @@ export function Header() {
           </SheetTrigger>
           <SheetContent side="right" className="w-[300px]">
             <nav className="flex flex-col gap-4 mt-8">
+              <Link
+                href="/order-history"
+                onClick={() => setIsOpen(false)}
+                className="text-lg font-medium transition-colors hover:text-primary flex items-center gap-2"
+              >
+                <Clock3 className="h-5 w-5" />
+                Historie objednávek
+              </Link>
               <Link
                 href="/kosik"
                 onClick={() => setIsOpen(false)}
