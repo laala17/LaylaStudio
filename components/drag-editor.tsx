@@ -211,9 +211,38 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
     window.addEventListener("pointerup", handlePointerUp)
   }
 
+  const addItemToCanvas = (item: PaletteItem, x?: number, y?: number) => {
+    const canvasArea = canvasAreaRef.current
+    if (!canvasArea) return
+
+    const rect = canvasArea.getBoundingClientRect()
+    const left = x !== undefined ? x : rect.width / 2 - 48
+    const top = y !== undefined ? y : rect.height / 2 - 48
+    const id = `item-${nextId.current++}`
+
+    setItems((prev) => [
+      ...prev,
+      {
+        id,
+        src: item.src,
+        name: item.name,
+        left: clamp(left, 0, rect.width - 96),
+        top: clamp(top, 0, rect.height - 96),
+        width: 96,
+        height: 96,
+        view: selectedView,
+      },
+    ])
+    setSelectedId(id)
+  }
+
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, item: PaletteItem) => {
     event.dataTransfer.setData("text/plain", JSON.stringify(item))
     event.dataTransfer.effectAllowed = "copy"
+  }
+
+  const handlePaletteItemClick = (item: PaletteItem) => {
+    addItemToCanvas(item)
   }
 
   const handleItemPointerDown = (event: ReactPointerEvent<HTMLDivElement>, itemId: string) => {
@@ -313,6 +342,7 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
       <div className="editor-header">
         <div>
           <h2>Personalizace plavek</h2>
+          <p className="editor-subtitle">Na mobilu klepněte na dekoraci pro přidání, na položku v plátně pak přetahujte.</p>
         </div>
       </div>
 
@@ -343,6 +373,13 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
                 role="button"
                 tabIndex={0}
                 draggable
+                onClick={() => handlePaletteItemClick(item)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault()
+                    handlePaletteItemClick(item)
+                  }
+                }}
                 onDragStart={(event) => handleDragStart(event, item)}
               >
                 <img src={item.src} alt={item.name} />
@@ -455,7 +492,7 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           font-size: clamp(1.5rem, 2vw, 2rem);
         }
 
-        .editor-header p {
+        .editor-subtitle {
           margin: 0.5rem 0 0;
           color: #475569;
           max-width: 40rem;
@@ -557,12 +594,16 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           padding: 0.95rem 1rem;
           cursor: grab;
           transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+          touch-action: manipulation;
+          user-select: none;
         }
 
-        .item-card:hover {
+        .item-card:hover,
+        .item-card:focus-visible {
           transform: translateY(-1px);
           border-color: #38bdf8;
           background: #eff8ff;
+          outline: none;
         }
 
         .item-card img {
