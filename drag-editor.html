@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drag-and-Place Editor | E-shop plavky</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --border: #d9e2ef;
+      --text: #102a43;
+      --muted: #617d98;
+      --accent: #0066ff;
+      --accent-soft: rgba(0, 102, 255, 0.12);
+      --shadow: 0 18px 50px rgba(16, 42, 67, 0.08);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%);
+      color: var(--text);
+    }
+
+    .page {
+      display: grid;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 22px 24px;
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: clamp(1.5rem, 2vw, 2rem);
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 620px;
+      line-height: 1.6;
+    }
+
+    .editor {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+    }
+
+    .panel,
+    .canvas-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      min-height: 600px;
+    }
+
+    .panel header,
+    .canvas-panel header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel header h2,
+    .canvas-panel header h2 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .panel header span {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .items {
+      display: grid;
+      gap: 16px;
+      padding: 22px;
+      flex: 1;
+    }
+
+    .item-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 16px;
+      border: 1px solid #d7e0f4;
+      border-radius: 18px;
+      background: #ffffff;
+      cursor: grab;
+      transition: transform 160ms ease, border-color 160ms ease;
+    }
+
+    .item-card:active {
+      cursor: grabbing;
+    }
+
+    .item-card:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+    }
+
+    .item-card img {
+      width: 52px;
+      height: 52px;
+      object-fit: cover;
+      border-radius: 16px;
+      box-shadow: 0 6px 16px rgba(16, 42, 67, 0.12);
+    }
+
+    .item-card strong {
+      font-size: 0.98rem;
+      display: block;
+      color: var(--text);
+    }
+
+    .canvas-body {
+      min-height: 600px;
+      position: relative;
+      padding: 24px;
+    }
+
+    .drop-zone {
+      position: relative;
+      width: 100%;
+      height: min(720px, 78vh);
+      border-radius: 28px;
+      background: radial-gradient(circle at top left, rgba(0, 102, 255, 0.12), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(0, 102, 255, 0.08), transparent 30%),
+        #f8fbff;
+      border: 1px dashed rgba(16, 42, 67, 0.16);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      transition: border-color 200ms ease, background-color 200ms ease;
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--accent);
+      background-color: rgba(0, 102, 255, 0.04);
+    }
+
+    .drop-zone::before {
+      content: "Přetáhni dekoraci sem";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: grid;
+      place-items: center;
+      font-size: 1rem;
+      color: var(--muted);
+      opacity: 0.6;
+    }
+
+    .canvas-inner {
+      position: relative;
+      width: min(100%, 540px);
+      aspect-ratio: 3 / 4;
+      border-radius: 28px;
+      overflow: hidden;
+      background: #eef3fb;
+      box-shadow: inset 0 0 0 1px rgba(16, 42, 67, 0.04);
+    }
+
+    .canvas-inner img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: saturate(1.1);
+    }
+
+    .canvas-area {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .canvas-item {
+      position: absolute;
+      width: 96px;
+      height: 96px;
+      touch-action: none;
+      cursor: move;
+      user-select: none;
+      border-radius: 18px;
+      transform-origin: top left;
+    }
+
+    .canvas-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      border-radius: inherit;
+      box-shadow: 0 18px 45px rgba(16, 42, 67, 0.14);
+    }
+
+    .canvas-item .controls {
+      position: absolute;
+      inset: 12px auto auto 12px;
+      display: flex;
+      gap: 10px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 180ms ease, visibility 180ms ease;
+      z-index: 2;
+    }
+
+    .canvas-item.selected .controls {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .canvas-item.selected {
+      outline: 2px solid rgba(0, 102, 255, 0.9);
+      outline-offset: 6px;
+    }
+
+    .canvas-item button {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      color: var(--text);
+      font-size: 0.95rem;
+      box-shadow: 0 8px 18px rgba(16, 42, 67, 0.12);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 160ms ease, background 160ms ease;
+    }
+
+    .canvas-item button:hover {
+      transform: translateY(-1px);
+      background: #ffffff;
+    }
+
+    .canvas-item button.rotate-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+    }
+
+    .handle {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 8px 20px rgba(16, 42, 67, 0.12);
+      cursor: nwse-resize;
+      touch-action: none;
+    }
+
+    .handle.br {
+      right: -10px;
+      bottom: -10px;
+    }
+
+    .info-bar {
+      margin-top: 20px;
+      padding: 16px 20px;
+      border-top: 1px solid #e7edf7;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .info-bar span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .helper {
+      background: rgba(0, 102, 255, 0.08);
+      color: var(--accent);
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 960px) {
+      .editor {
+        grid-template-columns: 1fr;
+      }
+
+      .canvas-body {
+        padding: 18px;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .page {
+        padding: 16px;
+      }
+
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .panel,
+      .canvas-panel {
+        border-radius: 22px;
+      }
+
+      .drop-zone {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div>
+        <h1>Drag-and-Place editor pro plavky</h1>
+        <p>Vyber dekorací z nabídky a přetáhni je na model. Poté je můžeš přesouvat a měnit velikost přímo v editoru.</p>
+      </div>
+      <div class="helper">Tip: Klikni na vložený prvek pro rotaci nebo smazání, roh použij pro změnu velikosti.</div>
+    </header>
+
+    <section class="editor">
+      <aside class="panel">
+        <header>
+          <h2>Panel dekorací</h2>
+          <span>Drag &amp; drop</span>
+        </header>
+        <div class="items">
+          <div class="item-card" draggable="true" data-src="https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=200&q=80" data-name="Květina">
+            <img src="https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=120&q=80" alt="Květina" />
+            <strong>Floral print</strong>
+          </div>
+          <div class="item-card" draggable="true" data-src="https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=200&q=80" data-name="Logo">
+            <img src="https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=120&q=80" alt="Logo" />
+            <strong>Minimal logo</strong>
+          </div>
+          <div class="item-card" draggable="true" data-src="https://images.unsplash.com/photo-1527030280862-64139fba04ca?auto=format&fit=crop&w=200&q=80" data-name="Srdce">
+            <img src="https://images.unsplash.com/photo-1527030280862-64139fba04ca?auto=format&fit=crop&w=120&q=80" alt="Srdce" />
+            <strong>Heart</strong>
+          </div>
+          <div class="item-card" draggable="true" data-src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=200&q=80" data-name="Tropický vzor">
+            <img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=120&q=80" alt="Tropický vzor" />
+            <strong>Lines</strong>
+          </div>
+        </div>
+      </aside>
+
+      <section class="canvas-panel">
+        <header>
+          <h2>Plátno s plavkami</h2>
+          <span>Drop-zóna</span>
+        </header>
+        <div class="canvas-body">
+          <div id="dropZone" class="drop-zone">
+            <div class="canvas-inner" id="canvasInner">
+              <img src="https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=900&q=80" alt="Model plavek" />
+              <div class="canvas-area" id="canvasArea"></div>
+            </div>
+          </div>
+          <div class="info-bar">
+            <span id="instruction">Přetáhni jeden z dekorativních prvků do plátna. Klikni pro výběr, otoč a smaž kdykoli.</span>
+            <span>Responsivní layout · čistý moderní design</span>
+          </div>
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <script>
+    const items = document.querySelectorAll('.item-card');
+    const dropZone = document.getElementById('dropZone');
+    const canvasArea = document.getElementById('canvasArea');
+    const instruction = document.getElementById('instruction');
+    let activeItem = null;
+    let dragState = null;
+    let resizeState = null;
+    let rotateState = null;
+
+    items.forEach(card => {
+      card.addEventListener('dragstart', event => {
+        event.dataTransfer.setData('text/plain', JSON.stringify({
+          src: card.dataset.src,
+          name: card.dataset.name
+        }));
+        event.dataTransfer.effectAllowed = 'copy';
+      });
+    });
+
+    dropZone.addEventListener('dragover', event => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', event => {
+      event.preventDefault();
+      dropZone.classList.remove('dragover');
+
+      const data = event.dataTransfer.getData('text/plain');
+      if (!data) return;
+
+      const item = JSON.parse(data);
+      const rect = canvasArea.getBoundingClientRect();
+      const x = event.clientX - rect.left - 48;
+      const y = event.clientY - rect.top - 48;
+
+      addCanvasItem(item.src, item.name, x, y);
+      instruction.textContent = 'Klikni na prvek pro přesun nebo změnu velikosti.';
+    });
+
+    function addCanvasItem(src, label, x = 20, y = 20) {
+      const element = document.createElement('div');
+      element.className = 'canvas-item';
+      element.style.left = `${clamp(x, 0, canvasArea.clientWidth - 96)}px`;
+      element.style.top = `${clamp(y, 0, canvasArea.clientHeight - 96)}px`;
+      element.dataset.width = 96;
+      element.dataset.height = 96;
+      element.dataset.scale = 1;
+      element.dataset.rotation = 0;
+      element.dataset.label = label;
+      element.innerHTML = `
+        <div class="controls">
+          <button type="button" class="rotate-btn" title="Rotovat">⟲</button>
+          <button type="button" class="delete-btn" title="Odstranit">✕</button>
+        </div>
+        <img src="${src}" alt="${label}" />
+        <div class="handle br"></div>
+      `;
+
+      canvasArea.appendChild(element);
+      setActiveItem(element);
+      element.addEventListener('pointerdown', onPointerDown);
+      element.querySelector('.handle').addEventListener('pointerdown', onResizePointerDown);
+      element.querySelector('.rotate-btn').addEventListener('pointerdown', onRotatePointerDown);
+      element.querySelector('.delete-btn').addEventListener('click', onDeleteItem);
+      element.addEventListener('click', () => setActiveItem(element));
+    }
+
+    function setActiveItem(element) {
+      if (!element) return;
+      const prev = document.querySelector('.canvas-item.selected');
+      if (prev && prev !== element) prev.classList.remove('selected');
+      element.classList.add('selected');
+      activeItem = element;
+    }
+
+    function onPointerDown(event) {
+      if (event.target.classList.contains('handle')) return;
+      if (event.target.closest('.controls')) return;
+      if (event.button !== 0) return;
+
+      const item = event.currentTarget;
+      setActiveItem(item);
+
+      const rect = item.getBoundingClientRect();
+      const canvasRect = canvasArea.getBoundingClientRect();
+      dragState = {
+        item,
+        startX: event.clientX,
+        startY: event.clientY,
+        originLeft: rect.left - canvasRect.left,
+        originTop: rect.top - canvasRect.top,
+      };
+
+      item.setPointerCapture(event.pointerId);
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+    }
+
+    function onPointerMove(event) {
+      if (dragState) {
+        const dx = event.clientX - dragState.startX;
+        const dy = event.clientY - dragState.startY;
+        const left = clamp(dragState.originLeft + dx, 0, canvasArea.clientWidth - dragState.item.clientWidth);
+        const top = clamp(dragState.originTop + dy, 0, canvasArea.clientHeight - dragState.item.clientHeight);
+        dragState.item.style.left = `${left}px`;
+        dragState.item.style.top = `${top}px`;
+      }
+
+      if (resizeState) {
+        const { item, startX, startY, startWidth, startHeight, minSize } = resizeState;
+        const dx = event.clientX - startX;
+        const dy = event.clientY - startY;
+        const newWidth = clamp(startWidth + dx, minSize, canvasArea.clientWidth);
+        const newHeight = clamp(startHeight + dy, minSize, canvasArea.clientHeight);
+        item.style.width = `${newWidth}px`;
+        item.style.height = `${newHeight}px`;
+      }
+
+      if (rotateState) {
+        const { item, centerX, centerY, startAngle, initialRotation } = rotateState;
+        const angle = Math.atan2(event.clientY - centerY, event.clientX - centerX);
+        const degrees = ((angle - startAngle) * 180 / Math.PI) + initialRotation;
+        item.dataset.rotation = degrees;
+        item.style.transform = `rotate(${degrees}deg)`;
+      }
+    }
+
+    function onPointerUp(event) {
+      if (dragState) {
+        dragState.item.releasePointerCapture(event.pointerId);
+      }
+      if (resizeState) {
+        resizeState.item.releasePointerCapture(event.pointerId);
+      }
+      if (rotateState) {
+        rotateState.control.releasePointerCapture(event.pointerId);
+      }
+      dragState = null;
+      resizeState = null;
+      rotateState = null;
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    }
+
+    function onResizePointerDown(event) {
+      event.stopPropagation();
+      if (event.button !== 0) return;
+
+      const item = event.currentTarget.closest('.canvas-item');
+      setActiveItem(item);
+
+      resizeState = {
+        item,
+        startX: event.clientX,
+        startY: event.clientY,
+        startWidth: item.clientWidth,
+        startHeight: item.clientHeight,
+        minSize: 56
+      };
+
+      item.setPointerCapture(event.pointerId);
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+    }
+
+    function onRotatePointerDown(event) {
+      event.stopPropagation();
+      if (event.button !== 0) return;
+
+      const control = event.currentTarget;
+      const item = control.closest('.canvas-item');
+      setActiveItem(item);
+
+      const itemRect = item.getBoundingClientRect();
+      const centerX = itemRect.left + itemRect.width / 2;
+      const centerY = itemRect.top + itemRect.height / 2;
+      const startAngle = Math.atan2(event.clientY - centerY, event.clientX - centerX);
+      const initialRotation = Number(item.dataset.rotation) || 0;
+
+      rotateState = {
+        control,
+        item,
+        centerX,
+        centerY,
+        startAngle,
+        initialRotation
+      };
+
+      control.setPointerCapture(event.pointerId);
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+    }
+
+    function onDeleteItem(event) {
+      event.stopPropagation();
+      const item = event.currentTarget.closest('.canvas-item');
+      if (!item) return;
+      item.remove();
+      if (activeItem === item) {
+        activeItem = null;
+        instruction.textContent = 'Přetáhni další dekoraci do plátna.';
+      }
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    document.addEventListener('click', event => {
+      if (!event.target.closest('.canvas-item')) {
+        const selected = document.querySelector('.canvas-item.selected');
+        if (selected) selected.classList.remove('selected');
+        activeItem = null;
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      document.querySelectorAll('.canvas-item').forEach(item => {
+        const currentWidth = Math.min(item.clientWidth, canvasArea.clientWidth - parseFloat(item.style.left || 0));
+        const currentHeight = Math.min(item.clientHeight, canvasArea.clientHeight - parseFloat(item.style.top || 0));
+        item.style.width = `${currentWidth}px`;
+        item.style.height = `${currentHeight}px`;
+      });
+    });
+  </script>
+</body>
+</html>
