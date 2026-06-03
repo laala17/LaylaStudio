@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, type FormEvent } from "react"
+import { useState, useEffect, useRef, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { useCart } from "@/lib/cart-context"
@@ -39,10 +39,26 @@ export default function CheckoutPage() {
   const router = useRouter()
   const { items, totalPrice, clearCart } = useCart()
   const { addOrder } = useOrders()
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isQuickOrder, setIsQuickOrder] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
+
+  const preventCartRedirectRef = useRef(false)
+
+  async function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    const timeoutPromise = new Promise<T>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(errorMessage)), ms)
+    })
+    try {
+      return await Promise.race([promise, timeoutPromise])
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId)
+    }
+  }
+
   const [formData, setFormData] = useState<CustomerInfo>({
     firstName: "",
     lastName: "",
@@ -53,6 +69,7 @@ export default function CheckoutPage() {
     zipCode: "",
     country: "Česká republika",
   })
+
   const [guestData, setGuestData] = useState<GuestInfo>({
     fullName: "",
     email: "",
@@ -66,17 +83,16 @@ export default function CheckoutPage() {
   const shippingCost = totalPrice >= 1500 ? 0 : 99
   const finalTotal = totalPrice + shippingCost
 
-  // Handle redirect in useEffect to avoid calling router.push during render
   useEffect(() => {
-    // Wait for cart hydration
     const timer = setTimeout(() => {
       if (items.length === 0) {
-        router.push("/kosik")
+        if (!preventCartRedirectRef.current) router.push("/kosik")
+        else setIsLoading(false)
       } else {
         setIsLoading(false)
       }
     }, 100)
-    
+
     return () => clearTimeout(timer)
   }, [items, router])
 
@@ -92,60 +108,88 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setIsSubmitting(true)
 
-    // Simulate payment processing delay
+    setIsLoading(false)
+    setIsSubmitting(true)
+    setPaymentError("Začínám zpracování objednávky…")
+
+    preventCartRedirectRef.current = false
+
     await new Promise((resolve) => setTimeout(resolve, 1500))
 
     const customerInfo = isQuickOrder ? buildCustomerInfo(guestData) : formData
 
-    // Save current customer email to cookie so historie objednávek zůstane osobní
     document.cookie = `userEmail=${encodeURIComponent(customerInfo.email)}; path=/; max-age=31536000; SameSite=Lax`
 
-    // Uložit objednávku do Supabase + získat orderId
+    // Create order in DB
     let orderId: string | null = null
     try {
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer: customerInfo,
-          items,
-          totalPrice: finalTotal,
+      const response = await withTimeout(
+        fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customer: customerInfo,
+            items,
+            totalPrice: finalTotal,
+          }),
         }),
-      })
+        15000,
+        "Timeout při ukládání objednávky (/api/orders).",
+      )
 
       const data = await response.json().catch(() => null)
       if (!response.ok || !data?.orderId) {
-        console.error("Uložení objednávky selhalo:", data)
+        setPaymentError(`Uložení objednávky selhalo. (response=${JSON.stringify(data)})`)
+        setIsSubmitting(false)
         return
       }
 
       orderId = String(data.orderId)
+      setPaymentError("Objednávka uložena. Vytvářím Stripe checkout…")
     } catch (error) {
       console.error("Chyba při ukládání objednávky:", error)
+      setPaymentError(error instanceof Error ? error.message : "Chyba při ukládání objednávky.")
+      setIsSubmitting(false)
       return
     }
 
     const order = addOrder(items, customerInfo, finalTotal, { id: orderId ?? undefined })
 
+    // Prevent /kosik redirect while we’re going to Stripe
+    preventCartRedirectRef.current = true
+
     // Clear cart
     clearCart()
 
-    // Redirect to Stripe checkout
+    // Create Stripe checkout session
     try {
-      setPaymentError(null)
-
-      const checkoutRes = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: order.id }),
-      })
+      setPaymentError("Stripe: čekám odpověď z /api/checkout…")
+      const checkoutRes = await withTimeout(
+        fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: order.id }),
+        }),
+        15000,
+        "Timeout při vytváření Stripe checkoutu (/api/checkout).",
+      )
 
       const checkoutData = await checkoutRes.json().catch(() => null)
 
-      if (checkoutRes.ok && checkoutData?.url) {
-        window.location.href = String(checkoutData.url)
+      const urlType = typeof checkoutData?.url === "string" && checkoutData.url.length > 0 ? "yes" : "no"
+      setPaymentError(
+        `Stripe checkout: ok=${checkoutRes.ok}, status=${checkoutRes.status}, url=${urlType}${
+          urlType === "yes" ? ` (${String(checkoutData.url).slice(0, 50)}…)` : ""
+        }`,
+      )
+      setIsSubmitting(false)
+
+      if (checkoutRes.ok && typeof checkoutData?.url === "string" && checkoutData.url.length > 0) {
+        setPaymentError("Přesměrovávám na Stripe…")
+        setTimeout(() => {
+          window.location.href = checkoutData.url
+        }, 50)
         return
       }
 
@@ -156,20 +200,22 @@ export default function CheckoutPage() {
       })
 
       const msg =
-        checkoutData?.error || checkoutData?.details || "Nepodařilo se vytvořit Stripe checkout."
+        checkoutData?.error ||
+        checkoutData?.details ||
+        `Nepodařilo se vytvořit Stripe checkout. status=${checkoutRes.status}`
 
-      setPaymentError(String(msg))
+      setPaymentError(`${msg}${checkoutData ? ` (response=${JSON.stringify(checkoutData)})` : ""}`)
       setIsSubmitting(false)
-      return
+      preventCartRedirectRef.current = false
     } catch (error) {
       console.error("Chyba při vytvoření Stripe checkoutu:", error)
-      setPaymentError("Chyba při vytvoření Stripe checkoutu.")
+      setPaymentError(error instanceof Error ? error.message : "Chyba při vytvoření Stripe checkoutu.")
       setIsSubmitting(false)
-      return
+      preventCartRedirectRef.current = false
     }
   }
 
-  if (isLoading || items.length === 0) {
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-20 flex justify-center">
         <Spinner className="h-8 w-8" />
@@ -179,11 +225,14 @@ export default function CheckoutPage() {
 
   return (
     <div className="container mx-auto px-4 py-12">
-      {/* Breadcrumb */}
       <nav className="mb-8 text-sm text-muted-foreground">
-        <a href="/" className="hover:text-foreground transition-colors">Domů</a>
+        <a href="/" className="hover:text-foreground transition-colors">
+          Domů
+        </a>
         <span className="mx-2">/</span>
-        <a href="/kosik" className="hover:text-foreground transition-colors">Košík</a>
+        <a href="/kosik" className="hover:text-foreground transition-colors">
+          Košík
+        </a>
         <span className="mx-2">/</span>
         <span className="text-foreground">Pokladna</span>
       </nav>
@@ -192,14 +241,16 @@ export default function CheckoutPage() {
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          {/* Checkout Form */}
+          {/* Form */}
           <div className="lg:col-span-2 space-y-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 type="button"
                 onClick={() => setIsQuickOrder(false)}
                 className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
-                  !isQuickOrder ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700"
+                  !isQuickOrder
+                    ? "border-slate-950 bg-slate-950 text-white"
+                    : "border-slate-200 bg-white text-slate-700"
                 }`}
               >
                 Plná objednávka
@@ -208,7 +259,9 @@ export default function CheckoutPage() {
                 type="button"
                 onClick={() => setIsQuickOrder(true)}
                 className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
-                  isQuickOrder ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700"
+                  isQuickOrder
+                    ? "border-slate-950 bg-slate-950 text-white"
+                    : "border-slate-200 bg-white text-slate-700"
                 }`}
               >
                 Rychlá objednávka bez registrace
@@ -218,17 +271,19 @@ export default function CheckoutPage() {
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
               {isQuickOrder ? (
                 <p>
-                  Vyplňte pouze základní údaje a objednávku dokončíte bez registrace. Adresa a e-mail jsou povinné.
+                  Vyplňte pouze základní údaje a objednávku dokončíte bez registrace. Adresa a e-mail
+                  jsou povinné.
                 </p>
               ) : (
                 <p>
-                  Plná objednávka zahrnuje kompletní kontaktní údaje a doručovací adresu. Pokud chcete rychle objednat, zvolte rychlý režim.
+                  Plná objednávka zahrnuje kompletní kontaktní údaje a doručovací adresu. Pokud chcete
+                  rychle objednat, zvolte rychlý režim.
                 </p>
               )}
             </div>
 
             {isQuickOrder ? (
-              <>
+              <div className="space-y-6">
                 <div className="p-6 rounded-xl border border-border bg-card">
                   <h2 className="text-lg font-semibold mb-6">Rychlá objednávka</h2>
                   <div className="grid grid-cols-1 gap-4">
@@ -313,214 +368,122 @@ export default function CheckoutPage() {
                   <h2 className="text-lg font-semibold mb-6">Způsob platby</h2>
                   <div className="space-y-4">
                     <label className="flex items-center gap-4 p-4 rounded-lg border border-primary bg-primary/5 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="paymentQuick"
-                        value="card"
-                        defaultChecked
-                        className="w-4 h-4 text-primary"
-                      />
+                      <input type="radio" name="paymentQuick" value="card" defaultChecked className="w-4 h-4 text-primary" />
                       <div>
                         <p className="font-medium">Platba kartou</p>
-                        <p className="text-sm text-muted-foreground">
-                          Bezpečná platba přes Stripe
-                        </p>
+                        <p className="text-sm text-muted-foreground">Bezpečná platba přes Stripe</p>
                       </div>
                     </label>
+
                     <label className="flex items-center gap-4 p-4 rounded-lg border border-border hover:border-muted-foreground cursor-pointer transition-colors">
-                      <input
-                        type="radio"
-                        name="paymentQuick"
-                        value="transfer"
-                        className="w-4 h-4 text-primary"
-                      />
+                      <input type="radio" name="paymentQuick" value="transfer" className="w-4 h-4 text-primary" />
                       <div>
                         <p className="font-medium">Bankovní převod</p>
-                        <p className="text-sm text-muted-foreground">
-                          Platba předem na účet
-                        </p>
+                        <p className="text-sm text-muted-foreground">Platba předem na účet</p>
                       </div>
                     </label>
                   </div>
+
                   <p className="text-xs text-muted-foreground mt-4">
                     * Pro aktivaci online platby přidejte Stripe API klíče
                   </p>
                 </div>
-              </>
+              </div>
             ) : (
-              <>
-                {/* Contact Info */}
+              <div className="space-y-6">
                 <div className="p-6 rounded-xl border border-border bg-card">
                   <h2 className="text-lg font-semibold mb-6">Kontaktní údaje</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">Jméno *</Label>
-                      <Input
-                        id="firstName"
-                        name="firstName"
-                        value={formData.firstName}
-                        onChange={handleInputChange}
-                        required
-                      />
+                      <Input id="firstName" name="firstName" value={formData.firstName} onChange={handleInputChange} required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lastName">Příjmení *</Label>
-                      <Input
-                        id="lastName"
-                        name="lastName"
-                        value={formData.lastName}
-                        onChange={handleInputChange}
-                        required
-                      />
+                      <Input id="lastName" name="lastName" value={formData.lastName} onChange={handleInputChange} required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">E-mail *</Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        required
-                      />
+                      <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Telefon *</Label>
-                      <Input
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        value={formData.phone}
-                        onChange={handleInputChange}
-                        required
-                      />
+                      <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required />
                     </div>
                   </div>
                 </div>
 
-            {/* Delivery Address */}
-            <div className="p-6 rounded-xl border border-border bg-card">
-              <h2 className="text-lg font-semibold mb-6">Doručovací adresa</h2>
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="street">Ulice a číslo popisné *</Label>
-                  <Input
-                    id="street"
-                    name="street"
-                    value={formData.street}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="city">Město *</Label>
-                    <Input
-                      id="city"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="zipCode">PSČ *</Label>
-                    <Input
-                      id="zipCode"
-                      name="zipCode"
-                      value={formData.zipCode}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="country">Země</Label>
-                  <Input
-                    id="country"
-                    name="country"
-                    value={formData.country}
-                    onChange={handleInputChange}
-                    disabled
-                  />
-                </div>
-              </div>
-            </div>
+                <div className="p-6 rounded-xl border border-border bg-card">
+                  <h2 className="text-lg font-semibold mb-6">Doručovací adresa</h2>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="street">Ulice a číslo popisné *</Label>
+                      <Input id="street" name="street" value={formData.street} onChange={handleInputChange} required />
+                    </div>
 
-            {/* Payment Method */}
-            <div className="p-6 rounded-xl border border-border bg-card">
-              <h2 className="text-lg font-semibold mb-6">Způsob platby</h2>
-              <div className="space-y-4">
-                <label className="flex items-center gap-4 p-4 rounded-lg border border-primary bg-primary/5 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="card"
-                    defaultChecked
-                    className="w-4 h-4 text-primary"
-                  />
-                  <div>
-                    <p className="font-medium">Platba kartou</p>
-                    <p className="text-sm text-muted-foreground">
-                      Bezpečná platba přes Stripe
-                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="city">Město *</Label>
+                        <Input id="city" name="city" value={formData.city} onChange={handleInputChange} required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="zipCode">PSČ *</Label>
+                        <Input id="zipCode" name="zipCode" value={formData.zipCode} onChange={handleInputChange} required />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="country">Země</Label>
+                      <Input id="country" name="country" value={formData.country} onChange={handleInputChange} disabled />
+                    </div>
                   </div>
-                </label>
-                <label className="flex items-center gap-4 p-4 rounded-lg border border-border hover:border-muted-foreground cursor-pointer transition-colors">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="transfer"
-                    className="w-4 h-4 text-primary"
-                  />
-                  <div>
-                    <p className="font-medium">Bankovní převod</p>
-                    <p className="text-sm text-muted-foreground">
-                      Platba předem na účet
-                    </p>
+                </div>
+
+                <div className="p-6 rounded-xl border border-border bg-card">
+                  <h2 className="text-lg font-semibold mb-6">Způsob platby</h2>
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-4 p-4 rounded-lg border border-primary bg-primary/5 cursor-pointer">
+                      <input type="radio" name="payment" value="card" defaultChecked className="w-4 h-4 text-primary" />
+                      <div>
+                        <p className="font-medium">Platba kartou</p>
+                        <p className="text-sm text-muted-foreground">Bezpečná platba přes Stripe</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-4 p-4 rounded-lg border border-border hover:border-muted-foreground cursor-pointer transition-colors">
+                      <input type="radio" name="payment" value="transfer" className="w-4 h-4 text-primary" />
+                      <div>
+                        <p className="font-medium">Bankovní převod</p>
+                        <p className="text-sm text-muted-foreground">Platba předem na účet</p>
+                      </div>
+                    </label>
                   </div>
-                </label>
+
+                  <p className="text-xs text-muted-foreground mt-4">
+                    * Pro aktivaci online platby přidejte Stripe API klíče
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-4">
-                * Pro aktivaci online platby přidejte Stripe API klíče
-              </p>
-            </div>
-          </>
             )}
           </div>
 
-          {/* Order Summary */}
+          {/* Summary */}
           <div className="lg:col-span-1">
             <div className="sticky top-24 p-6 rounded-xl border border-border bg-card">
               <h2 className="text-lg font-semibold mb-6">Vaše objednávka</h2>
 
               <div className="space-y-4 mb-6">
                 {items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex gap-3"
-                  >
+                  <div key={item.id} className="flex gap-3">
                     <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                      <Image
-                        src={item.product.image}
-                        alt={item.product.name}
-                        fill
-                        className="object-cover"
-                      />
+                      <Image src={item.product.image} alt={item.product.name} fill className="object-cover" />
                       <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
                         {item.quantity}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium line-clamp-1">
-                        {item.product.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Vel.: {item.size}
-                      </p>
-                      <p className="text-sm font-medium mt-1">
-                        {formatPrice(item.product.price * item.quantity)}
-                      </p>
+                      <p className="text-sm font-medium line-clamp-1">{item.product.name}</p>
+                      <p className="text-xs text-muted-foreground">Vel.: {item.size}</p>
+                      <p className="text-sm font-medium mt-1">{formatPrice(item.product.price * item.quantity)}</p>
                     </div>
                   </div>
                 ))}
@@ -534,11 +497,7 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Doprava</span>
                   <span>
-                    {shippingCost === 0 ? (
-                      <span className="text-green-600">Zdarma</span>
-                    ) : (
-                      formatPrice(shippingCost)
-                    )}
+                    {shippingCost === 0 ? <span className="text-green-600">Zdarma</span> : formatPrice(shippingCost)}
                   </span>
                 </div>
               </div>
@@ -550,14 +509,13 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                size="lg"
-                disabled={isSubmitting}
-              >
+              <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
                 {isSubmitting ? "Zpracovávám..." : "Dokončit objednávku"}
               </Button>
+
+              <p className="text-sm text-red-600 text-center mt-4 min-h-[1.25rem]">
+                {paymentError ?? ""}
+              </p>
 
               <p className="text-xs text-muted-foreground text-center mt-4">
                 Kliknutím na tlačítko souhlasíte s obchodními podmínkami
