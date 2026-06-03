@@ -8,7 +8,7 @@ export default function HomePage() {
     <section className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden bg-muted">
       <div className="absolute inset-0 z-0">
         <Image
-          src="/images/1.png"
+          src="/images/77.png"
           alt="Hero background"
           fill
           className="object-cover opacity-20"
@@ -16,16 +16,14 @@ export default function HomePage() {
         />
       </div>
 
-      <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
-        <div className="relative h-28 w-28 sm:h-40 sm:w-40 md:h-52 md:w-52 -mt-10 md:-mt-14">
-          <Image
-            src="/images/77.png"
-            alt="Head decoration"
-            fill
-            className="object-contain"
-            priority
-          />
-        </div>
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <Image
+          src="/images/"
+          alt="Head decoration"
+          fill
+          className="object-cover opacity-35"
+          priority
+        />
       </div>
 
       <div className="container relative z-10 mx-auto px-4 py-20 text-center">
