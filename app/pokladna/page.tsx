@@ -102,6 +102,29 @@ export default function CheckoutPage() {
     // Save current customer email to cookie so historie objednávek zůstane osobní
     document.cookie = `userEmail=${encodeURIComponent(customerInfo.email)}; path=/; max-age=31536000; SameSite=Lax`
 
+    // Send order confirmation email
+    try {
+      const orderDate = new Date().toLocaleDateString("cs-CZ", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+
+      await fetch("/api/order-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderNumber: order.id,
+          customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
+          email: customerInfo.email,
+          total: finalTotal,
+          orderDate,
+        }),
+      })
+    } catch (error) {
+      console.error("Chyba při odesílání potvrzovacího emailu:", error)
+    }
+
     // Clear cart
     clearCart()
 

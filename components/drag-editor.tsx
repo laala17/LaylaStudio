@@ -927,26 +927,361 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           }
         }
 
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
           .drag-editor {
             padding: 1rem;
             border-radius: 22px;
+            margin-top: 1.5rem;
           }
 
           .editor-header {
-            flex-direction: column;
-            align-items: flex-start;
+            margin-bottom: 1.25rem;
           }
 
-          .panel-header,
-          .canvas-panel .panel-header {
-            flex-direction: column;
-            align-items: flex-start;
+          .editor-header h2 {
+            font-size: 1.5rem;
+          }
+
+          .editor-subtitle {
+            font-size: 0.9rem;
+            line-height: 1.5;
+          }
+
+          .editor-layout {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+          }
+
+          .panel {
+            min-height: auto;
+            max-height: 420px;
+            overflow-y: auto;
+          }
+
+          .panel-header h3 {
+            font-size: 1rem;
+          }
+
+          .category-tabs {
+            padding: 1rem 1rem 0;
+            gap: 0.5rem;
+            justify-content: flex-start;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .category-tab {
+            padding: 0.6rem 0.85rem;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+          }
+
+          .items-list {
+            gap: 0.75rem;
+            padding: 0.75rem 1rem 1rem;
+            grid-template-columns: 1fr;
+          }
+
+          .item-card {
+            padding: 0.75rem 0.85rem;
+            gap: 0.75rem;
+          }
+
+          .item-card img {
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+          }
+
+          .item-card strong {
+            font-size: 0.9rem;
+          }
+
+          .mobile-hint {
+            padding: 0 1rem 0.75rem;
+            font-size: 0.85rem;
+          }
+
+          .canvas-body {
+            padding: 1rem;
+            min-height: auto;
+          }
+
+          .view-switcher {
+            margin-bottom: 0.75rem;
+            gap: 0.5rem;
+          }
+
+          .view-switcher button {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+          }
+
+          .drop-zone {
+            min-height: 380px;
+            border-radius: 20px;
+            padding: 1rem;
+          }
+
+          .canvas-inner {
+            width: 100%;
+            max-width: 100%;
+            aspect-ratio: 3 / 4;
+            border-radius: 20px;
+          }
+
+          .canvas-item {
+            border-radius: 16px;
+          }
+
+          .controls {
+            top: 8px;
+            left: 8px;
+            gap: 0.4rem;
+          }
+
+          .controls button {
+            width: 28px;
+            height: 28px;
+            font-size: 0.85rem;
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.15);
           }
 
           .status-pill {
-            width: 100%;
-            text-align: left;
+            font-size: 0.9rem;
+            padding: 0.5rem 0.8rem;
+          }
+
+          .info-bar {
+            margin-top: 0.75rem;
+            padding: 0.75rem 0.85rem;
+            font-size: 0.85rem;
+            gap: 0.5rem;
+          }
+        }
+
+        @media (max-width: 600px) {
+          .drag-editor {
+            padding: 0.75rem;
+          }
+
+          .editor-header {
+            margin-bottom: 1rem;
+            gap: 0.5rem;
+          }
+
+          .editor-header h2 {
+            font-size: 1.25rem;
+          }
+
+          .editor-subtitle {
+            font-size: 0.85rem;
+          }
+
+          .panel,
+          .canvas-panel {
+            border-radius: 18px;
+          }
+
+          .panel-header h3,
+          .canvas-panel h3 {
+            font-size: 0.95rem;
+          }
+
+          .category-tabs {
+            padding: 0.75rem 0.75rem 0;
+            gap: 0.4rem;
+          }
+
+          .category-tab {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            border-radius: 999px;
+          }
+
+          .items-list {
+            gap: 0.6rem;
+            padding: 0.6rem 0.75rem 0.75rem;
+          }
+
+          .item-card {
+            padding: 0.65rem 0.75rem;
+            gap: 0.65rem;
+            border-radius: 16px;
+          }
+
+          .item-card img {
+            width: 44px;
+            height: 44px;
+          }
+
+          .item-card strong {
+            font-size: 0.85rem;
+          }
+
+          .mobile-hint {
+            padding: 0 0.75rem 0.6rem;
+            font-size: 0.8rem;
+            line-height: 1.4;
+          }
+
+          .canvas-body {
+            padding: 0.75rem;
+          }
+
+          .view-switcher {
+            margin-bottom: 0.6rem;
+            gap: 0.4rem;
+          }
+
+          .view-switcher button {
+            padding: 0.55rem 0.9rem;
+            font-size: 0.85rem;
+            border-radius: 999px;
+          }
+
+          .drop-zone {
+            min-height: 340px;
+            border-radius: 18px;
+            padding: 0.75rem;
+            border-width: 2px;
+          }
+
+          .canvas-inner {
+            border-radius: 18px;
+            aspect-ratio: 3 / 4;
+          }
+
+          .canvas-item img {
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+          }
+
+          .controls {
+            top: 6px;
+            left: 6px;
+            gap: 0.35rem;
+          }
+
+          .controls button {
+            width: 26px;
+            height: 26px;
+            font-size: 0.8rem;
+            border-radius: 10px;
+          }
+
+          .info-bar {
+            margin-top: 0.6rem;
+            padding: 0.6rem 0.7rem;
+            font-size: 0.8rem;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .drag-editor {
+            padding: 0.6rem;
+            border-radius: 16px;
+          }
+
+          .editor-header {
+            margin-bottom: 0.9rem;
+          }
+
+          .editor-header h2 {
+            font-size: 1.1rem;
+          }
+
+          .editor-subtitle {
+            font-size: 0.8rem;
+            line-height: 1.4;
+          }
+
+          .panel,
+          .canvas-panel {
+            border-radius: 16px;
+          }
+
+          .panel-header {
+            padding: 1rem 0.85rem;
+          }
+
+          .category-tabs {
+            padding: 0.6rem 0.6rem 0;
+            gap: 0.35rem;
+          }
+
+          .category-tab {
+            padding: 0.45rem 0.65rem;
+            font-size: 0.8rem;
+          }
+
+          .items-list {
+            gap: 0.5rem;
+            padding: 0.5rem 0.6rem 0.6rem;
+          }
+
+          .item-card {
+            padding: 0.6rem 0.65rem;
+            gap: 0.6rem;
+          }
+
+          .item-card img {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+          }
+
+          .item-card strong {
+            font-size: 0.8rem;
+          }
+
+          .mobile-hint {
+            padding: 0 0.6rem 0.5rem;
+            font-size: 0.75rem;
+          }
+
+          .canvas-body {
+            padding: 0.6rem;
+            min-height: auto;
+          }
+
+          .view-switcher {
+            margin-bottom: 0.5rem;
+            gap: 0.3rem;
+          }
+
+          .view-switcher button {
+            padding: 0.5rem 0.8rem;
+            font-size: 0.8rem;
+          }
+
+          .drop-zone {
+            min-height: 320px;
+            border-radius: 16px;
+            padding: 0.6rem;
+          }
+
+          .canvas-inner {
+            border-radius: 16px;
+          }
+
+          .controls {
+            top: 5px;
+            left: 5px;
+            gap: 0.3rem;
+          }
+
+          .controls button {
+            width: 24px;
+            height: 24px;
+            font-size: 0.75rem;
+            border-radius: 8px;
+          }
+
+          .info-bar {
+            margin-top: 0.5rem;
+            padding: 0.5rem 0.6rem;
+            font-size: 0.75rem;
           }
         }
       `}</style>
