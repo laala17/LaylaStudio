@@ -13,10 +13,21 @@ export function getSupabaseServer(): SupabaseClient {
 
   // Note: publishable key is not needed for server-side writes (we use service role).
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
-  if (!supabaseUrl) throw new Error("Missing env var: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)")
+  if (!supabaseUrl) {
+    console.error("Supabase env missing:", {
+      SUPABASE_URL: Boolean(process.env.SUPABASE_URL),
+      NEXT_PUBLIC_SUPABASE_URL: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    })
+    throw new Error("Missing env var: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)")
+  }
 
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceRoleKey) throw new Error("Missing env var: SUPABASE_SERVICE_ROLE_KEY")
+  if (!serviceRoleKey) {
+    console.error("Supabase service role env missing:", {
+      SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    })
+    throw new Error("Missing env var: SUPABASE_SERVICE_ROLE_KEY")
+  }
 
   supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: {
