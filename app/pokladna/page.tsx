@@ -168,85 +168,125 @@ export default function CheckoutPage() {
             </div>
 
             {isQuickOrder ? (
-              <div className="p-6 rounded-xl border border-border bg-card">
-                <h2 className="text-lg font-semibold mb-6">Rychlá objednávka</h2>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Jméno a příjmení *</Label>
-                    <Input
-                      id="fullName"
-                      name="fullName"
-                      value={guestData.fullName}
-                      onChange={handleGuestInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">E-mail *</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={guestData.email}
-                      onChange={handleGuestInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Telefon *</Label>
-                    <Input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      value={guestData.phone}
-                      onChange={handleGuestInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Ulice a číslo popisné *</Label>
-                    <Input
-                      id="address"
-                      name="address"
-                      value={guestData.address}
-                      onChange={handleGuestInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <>
+                <div className="p-6 rounded-xl border border-border bg-card">
+                  <h2 className="text-lg font-semibold mb-6">Rychlá objednávka</h2>
+                  <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="city">Město *</Label>
+                      <Label htmlFor="fullName">Jméno a příjmení *</Label>
                       <Input
-                        id="city"
-                        name="city"
-                        value={guestData.city}
+                        id="fullName"
+                        name="fullName"
+                        value={guestData.fullName}
                         onChange={handleGuestInputChange}
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="zipCode">PSČ *</Label>
+                      <Label htmlFor="email">E-mail *</Label>
                       <Input
-                        id="zipCode"
-                        name="zipCode"
-                        value={guestData.zipCode}
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={guestData.email}
                         onChange={handleGuestInputChange}
                         required
                       />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="country">Země</Label>
-                    <Input
-                      id="country"
-                      name="country"
-                      value={guestData.country}
-                      onChange={handleGuestInputChange}
-                      disabled
-                    />
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Telefon *</Label>
+                      <Input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        value={guestData.phone}
+                        onChange={handleGuestInputChange}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Ulice a číslo popisné *</Label>
+                      <Input
+                        id="address"
+                        name="address"
+                        value={guestData.address}
+                        onChange={handleGuestInputChange}
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="city">Město *</Label>
+                        <Input
+                          id="city"
+                          name="city"
+                          value={guestData.city}
+                          onChange={handleGuestInputChange}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="zipCode">PSČ *</Label>
+                        <Input
+                          id="zipCode"
+                          name="zipCode"
+                          value={guestData.zipCode}
+                          onChange={handleGuestInputChange}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="country">Země</Label>
+                      <Input
+                        id="country"
+                        name="country"
+                        value={guestData.country}
+                        onChange={handleGuestInputChange}
+                        disabled
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                <div className="p-6 rounded-xl border border-border bg-card">
+                  <h2 className="text-lg font-semibold mb-6">Způsob platby</h2>
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-4 p-4 rounded-lg border border-primary bg-primary/5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="paymentQuick"
+                        value="card"
+                        defaultChecked
+                        className="w-4 h-4 text-primary"
+                      />
+                      <div>
+                        <p className="font-medium">Platba kartou</p>
+                        <p className="text-sm text-muted-foreground">
+                          Bezpečná platba přes Stripe
+                        </p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-4 p-4 rounded-lg border border-border hover:border-muted-foreground cursor-pointer transition-colors">
+                      <input
+                        type="radio"
+                        name="paymentQuick"
+                        value="transfer"
+                        className="w-4 h-4 text-primary"
+                      />
+                      <div>
+                        <p className="font-medium">Bankovní převod</p>
+                        <p className="text-sm text-muted-foreground">
+                          Platba předem na účet
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-4">
+                    * Pro aktivaci online platby přidejte Stripe API klíče
+                  </p>
+                </div>
+              </>
             ) : (
               <>
                 {/* Contact Info */}
