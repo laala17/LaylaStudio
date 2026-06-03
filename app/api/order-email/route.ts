@@ -6,6 +6,7 @@ const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder");
 type OrderEmailPayload = {
   orderNumber: string
   customerName: string
+  email: string
   total: number
   status: string
   action: string
@@ -24,9 +25,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Neplatná JSON žádost." }, { status: 400 })
   }
 
-  const { orderNumber, customerName, total, status, action } = body as OrderEmailPayload
+  const { orderNumber, customerName, email, total, status, action } = body as OrderEmailPayload
 
-  if (!orderNumber || !customerName || !total || !status || !action) {
+  if (!orderNumber || !customerName || !email || !total || !status || !action) {
     return NextResponse.json({ error: "Chybí požadovaná data o objednávce." }, { status: 400 })
   }
 
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
   try {
     await resend.emails.send({
       from: "onboarding@resend.dev",
-      to: "muj-email@seznam.cz",
+      to: [email],
       subject,
       html,
     })
