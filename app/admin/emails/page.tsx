@@ -20,7 +20,7 @@ export default function EmailLogPage() {
 
   return (
     <div style={{ padding: "40px", fontFamily: "sans-serif", maxWidth: "800px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "24px", marginBottom: "20px" }}>📧 Layalastudio – Zachycené e-maily</h1>
+      <h1 style={{ fontSize: "24px", marginBottom: "20px" }}>📧 LayalaStudio – Zachycené e-maily</h1>
       <p style={{ color: "#666", marginBottom: "30px" }}>Zde uvidíte registrační odkazy v reálném čase bez nutnosti čekat na e-mail.</p>
 
       {logs.length === 0 ? (
@@ -39,7 +39,7 @@ export default function EmailLogPage() {
                 </span>
               </div>
               <p style={{ margin: "10px 0", fontSize: "14px", color: "#333" }}>
-                <strong>Předmět:</strong> Dokončení registrace | Layalastudio
+                <strong>Předmět:</strong> Dokončení registrace | LayalaStudio
               </p>
               <div style={{ background: "#f9fafb", padding: "15px", borderRadius: "6px", fontSize: "14px", borderLeft: "4px solid #111" }}>
                 <p style={{ margin: "0 0 10px 0" }}>Ahoj, děkujeme za registraci na našem e-shopu...</p>
