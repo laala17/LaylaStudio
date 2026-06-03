@@ -123,7 +123,12 @@ export default function CheckoutPage() {
 
     // Create order in DB
     let orderId: string | null = null
+    let ordersWaitTimer: ReturnType<typeof setTimeout> | null = null
     try {
+      ordersWaitTimer = setTimeout(() => {
+        setPaymentError("Čekám na odpověď z /api/orders…")
+      }, 5000)
+
       const response = await withTimeout(
         fetch("/api/orders", {
           method: "POST",
@@ -146,9 +151,11 @@ export default function CheckoutPage() {
       }
 
       orderId = String(data.orderId)
+      if (ordersWaitTimer) clearTimeout(ordersWaitTimer)
       setPaymentError("Objednávka uložena. Vytvářím Stripe checkout…")
     } catch (error) {
       console.error("Chyba při ukládání objednávky:", error)
+      if (ordersWaitTimer) clearTimeout(ordersWaitTimer)
       setPaymentError(error instanceof Error ? error.message : "Chyba při ukládání objednávky.")
       setIsSubmitting(false)
       return
