@@ -98,6 +98,12 @@ const paletteItems: PaletteItem[] = [
     name: "Korálky",
     category: "Korálky",
   },
+  {
+    id: "head-77",
+    src: "/images/77.png",
+    name: "Head",
+    category: "Head",
+  },
 ]
 
 type ViewMode = "front" | "back"
@@ -125,6 +131,15 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
   const [isMobile, setIsMobile] = useState(false)
   const pointerState = useRef<PointerState>(null)
   const nextId = useRef(1)
+
+  const getDecorationSize = () => {
+    if (!isMobile) return 96
+    if (typeof window === "undefined") return 64
+
+    if (window.matchMedia("(max-width: 480px)").matches) return 56
+    if (window.matchMedia("(max-width: 600px)").matches) return 60
+    return 64
+  }
 
   const categories = Array.from(new Set(paletteItems.map((item) => item.category)))
   const filteredItems = paletteItems.filter((item) => item.category === selectedCategory)
@@ -169,8 +184,10 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
     if (!canvasArea) return
 
     const rect = canvasArea.getBoundingClientRect()
-    const x = event.clientX - rect.left - 48
-    const y = event.clientY - rect.top - 48
+    const size = getDecorationSize()
+    const half = size / 2
+    const x = event.clientX - rect.left - half
+    const y = event.clientY - rect.top - half
     const id = `item-${nextId.current++}`
 
     setItems((prev) => [
@@ -179,10 +196,10 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
         id,
         src: parsed.src,
         name: parsed.name,
-        left: clamp(x, 0, rect.width - 96),
-        top: clamp(y, 0, rect.height - 96),
-        width: 96,
-        height: 96,
+        left: clamp(x, 0, rect.width - size),
+        top: clamp(y, 0, rect.height - size),
+        width: size,
+        height: size,
         view: selectedView,
       },
     ])
@@ -235,8 +252,10 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
     if (!canvasArea) return
 
     const rect = canvasArea.getBoundingClientRect()
-    const left = x !== undefined ? x : rect.width / 2 - 48
-    const top = y !== undefined ? y : rect.height / 2 - 48
+    const size = getDecorationSize()
+    const half = size / 2
+    const left = x !== undefined ? x : rect.width / 2 - half
+    const top = y !== undefined ? y : rect.height / 2 - half
     const id = `item-${nextId.current++}`
 
     setItems((prev) => [
@@ -245,10 +264,10 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
         id,
         src: item.src,
         name: item.name,
-        left: clamp(left, 0, rect.width - 96),
-        top: clamp(top, 0, rect.height - 96),
-        width: 96,
-        height: 96,
+        left: clamp(left, 0, rect.width - size),
+        top: clamp(top, 0, rect.height - size),
+        width: size,
+        height: size,
         view: selectedView,
       },
     ])
@@ -275,8 +294,10 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
       const canvasArea = canvasAreaRef.current
       if (paletteItem && canvasArea) {
         const rect = canvasArea.getBoundingClientRect()
-        const x = event.clientX - rect.left - 48
-        const y = event.clientY - rect.top - 48
+        const size = getDecorationSize()
+        const half = size / 2
+        const x = event.clientX - rect.left - half
+        const y = event.clientY - rect.top - half
         addItemToCanvas(paletteItem, x, y)
       }
       setSelectedPaletteId(null)
@@ -748,16 +769,6 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           outline-offset: 8px;
         }
 
-        .canvas-item img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          border-radius: inherit;
-          box-shadow: 0 18px 44px rgba(15, 23, 42, 0.16);
-          pointer-events: none;
-          transform-origin: center;
-        }
-
         .controls {
           position: absolute;
           top: 12px;
@@ -1179,13 +1190,13 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           }
 
           .canvas-item img {
-            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
           }
 
-          .controls {
-            top: 6px;
-            left: 6px;
-            gap: 0.35rem;
+          .item-card strong {
+            font-size: 0.8rem;
           }
 
           .controls button {

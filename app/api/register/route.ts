@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     // Obalíme odesílání e-mailu do try-catch, abychom chytili přesný důvod selhání Resendu
     try {
       await resend.emails.send({
-        from: "LayalaStudio <info@layalastudio.cz>",
+        from: "LayalaStudio <info@layalastudio.com>",
         to: [email],
         subject: "Dokončení registrace | Layalastudio",
         html: `
