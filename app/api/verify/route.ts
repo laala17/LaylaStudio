@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { findUserByVerificationToken } from "@/lib/db"
+import { findUserByVerificationToken, setUserVerifiedAndClearToken } from "@/lib/supabase-users"
 
 export async function GET(request: Request) {
   const url = new URL(request.url)
@@ -9,13 +9,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Token není uveden." }, { status: 400 })
   }
 
-  const user = findUserByVerificationToken(token)
+  const user = await findUserByVerificationToken(token)
   if (!user) {
     return NextResponse.redirect(new URL("/login?verified=false", request.url))
   }
 
-  user.isVerified = true
-  user.verificationToken = null
+  await setUserVerifiedAndClearToken(token)
 
   return NextResponse.redirect(new URL("/login?verified=true", request.url))
 }

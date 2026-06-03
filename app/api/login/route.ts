@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { findUserByEmail } from "@/lib/db"
+import { verifyUserPassword } from "@/lib/supabase-users"
 import { AUTH_COOKIE_NAME, SESSION_MAX_AGE } from "@/lib/auth"
 
 export async function POST(request: Request) {
@@ -11,19 +11,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Vyplňte e-mail i heslo." }, { status: 400 })
   }
 
-  const user = findUserByEmail(email)
-  if (!user || user.password !== password) {
+  const result = await verifyUserPassword(email, password)
+  if (!result.id) {
     return NextResponse.json({ error: "Neplatné přihlašovací údaje." }, { status: 401 })
   }
 
-  if (!user.isVerified) {
+  if (!result.isVerified) {
     return NextResponse.json({ error: "Prosím, ověřte nejdříve svůj e-mail." }, { status: 403 })
   }
 
   const response = NextResponse.json({ ok: true })
   response.cookies.set({
     name: AUTH_COOKIE_NAME,
-    value: user.id,
+    value: result.id,
     httpOnly: true,
     path: "/",
     sameSite: "lax",

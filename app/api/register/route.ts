@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
 import { Resend } from "resend"
-import { users, findUserByEmail, type User } from "@/lib/db"
+import crypto from "crypto"
+import { findUserByEmail, createUserWithVerification } from "@/lib/supabase-users"
 
 const resendApiKey = process.env.RESEND_API_KEY
-// Inicializaci necháme raději čistou, ošetříme ji přímo v POST metodě
 const resend = resendApiKey ? new Resend(resendApiKey) : null
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
@@ -25,27 +25,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Vyplňte e-mail i heslo." }, { status: 400 })
     }
 
-    if (findUserByEmail(email)) {
+    const existing = await findUserByEmail(email)
+    if (existing) {
       return NextResponse.json({ error: "Uživatel s tímto e-mailem již existuje." }, { status: 400 })
     }
 
     const verificationToken = createToken()
-    const newUser: User = {
-      id: crypto.randomUUID(),
-      email,
-      password,
-      isVerified: false,
-      verificationToken,
-      resetPasswordToken: null,
-    }
-
-    users.push(newUser)
+    await createUserWithVerification(email, password, verificationToken)
 
     if (!resend) {
       return NextResponse.json({ error: "Chybí RESEND_API_KEY v prostředí Vercelu." }, { status: 500 })
     }
 
-    // Obalíme odesílání e-mailu do try-catch, abychom chytili přesný důvod selhání Resendu
     try {
       await resend.emails.send({
         from: "LayalaStudio <info@layalastudio.com>",
@@ -66,7 +57,7 @@ export async function POST(request: Request) {
 
               <div style="padding: 40px 30px;">
                 <p style="margin: 0 0 20px 0; font-size: 16px; color: #111111;">Ahoj,</p>
-                
+
                 <p style="margin: 0 0 20px 0; font-size: 15px; color: #555555;">
                   děkujeme za registraci na našem e-shopu.
                 </p>
@@ -94,17 +85,19 @@ export async function POST(request: Request) {
           </html>
         `,
       })
-    } catch (resendError: any) {
+    } catch (resendError: unknown) {
       console.error("Detailní chyba z Resendu:", resendError)
-      return NextResponse.json({ 
-        error: "Resend odmítl odeslat e-mail.", 
-        details: resendError.message || resendError 
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: "Resend odmítl odeslat e-mail.",
+          details: resendError instanceof Error ? resendError.message : resendError,
+        },
+        { status: 400 },
+      )
     }
 
     return NextResponse.json({ ok: true })
-
-  } catch (globalError: any) {
+  } catch (globalError: unknown) {
     console.error("Globální chyba registrace:", globalError)
     return NextResponse.json({ error: "Interní chyba serveru při registraci." }, { status: 500 })
   }

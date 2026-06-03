@@ -107,7 +107,7 @@ export async function POST(request: Request) {
 
   try {
     await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: "LayalaStudio <info@layalastudio.com>",
       to: [email],
       subject: "Potvrzení objednávky | Layalastudio",
       html,

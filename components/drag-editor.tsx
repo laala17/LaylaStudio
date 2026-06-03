@@ -98,12 +98,6 @@ const paletteItems: PaletteItem[] = [
     name: "Korálky",
     category: "Korálky",
   },
-  {
-    id: "head-77",
-    src: "/images/77.png",
-    name: "Head",
-    category: "Head",
-  },
 ]
 
 type ViewMode = "front" | "back"
@@ -132,13 +126,19 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
   const pointerState = useRef<PointerState>(null)
   const nextId = useRef(1)
 
-  const getDecorationSize = () => {
+  const getDecorationSize = (category?: string) => {
     if (!isMobile) return 96
     if (typeof window === "undefined") return 64
 
-    if (window.matchMedia("(max-width: 480px)").matches) return 56
-    if (window.matchMedia("(max-width: 600px)").matches) return 60
-    return 64
+    let base = 64
+    if (window.matchMedia("(max-width: 480px)").matches) base = 56
+    else if (window.matchMedia("(max-width: 600px)").matches) base = 60
+
+    let multiplier = 1
+    if (category === "Malé mašle") multiplier = 1.1
+    else if (category === "Velké mašle") multiplier = 1.05
+
+    return Math.round(base * multiplier)
   }
 
   const categories = Array.from(new Set(paletteItems.map((item) => item.category)))
@@ -184,7 +184,7 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
     if (!canvasArea) return
 
     const rect = canvasArea.getBoundingClientRect()
-    const size = getDecorationSize()
+    const size = getDecorationSize(parsed.category)
     const half = size / 2
     const x = event.clientX - rect.left - half
     const y = event.clientY - rect.top - half
@@ -252,7 +252,7 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
     if (!canvasArea) return
 
     const rect = canvasArea.getBoundingClientRect()
-    const size = getDecorationSize()
+    const size = getDecorationSize(item.category)
     const half = size / 2
     const left = x !== undefined ? x : rect.width / 2 - half
     const top = y !== undefined ? y : rect.height / 2 - half
@@ -294,7 +294,7 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
       const canvasArea = canvasAreaRef.current
       if (paletteItem && canvasArea) {
         const rect = canvasArea.getBoundingClientRect()
-        const size = getDecorationSize()
+        const size = getDecorationSize(paletteItem.category)
         const half = size / 2
         const x = event.clientX - rect.left - half
         const y = event.clientY - rect.top - half
@@ -771,8 +771,8 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
 
         .controls {
           position: absolute;
-          top: 12px;
-          left: 12px;
+          top: 4px;
+          left: 4px;
           display: flex;
           gap: 0.55rem;
           opacity: 0;
@@ -1072,8 +1072,8 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           }
 
           .controls {
-            top: 8px;
-            left: 8px;
+            top: 4px;
+            left: 4px;
             gap: 0.4rem;
           }
 
@@ -1302,8 +1302,8 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           }
 
           .controls {
-            top: 5px;
-            left: 5px;
+            top: 2px;
+            left: 2px;
             gap: 0.3rem;
           }
 
@@ -1328,4 +1328,3 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
- 

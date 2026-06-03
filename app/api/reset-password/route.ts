@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { findUserByResetPasswordToken } from "@/lib/db"
+import { findUserByResetPasswordToken, setUserPasswordByResetToken, clearResetPasswordToken } from "@/lib/supabase-users"
 
 export async function POST(request: Request) {
   const body = await request.json()
@@ -10,13 +10,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Vyplňte token i nové heslo." }, { status: 400 })
   }
 
-  const user = findUserByResetPasswordToken(token)
+  const user = await findUserByResetPasswordToken(token)
   if (!user) {
     return NextResponse.json({ error: "Neplatný nebo vypršený token." }, { status: 400 })
   }
 
-  user.password = newPassword
-  user.resetPasswordToken = null
+  await setUserPasswordByResetToken(token, newPassword)
+  await clearResetPasswordToken(token)
 
   return NextResponse.json({ ok: true })
 }
