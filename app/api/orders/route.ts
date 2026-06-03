@@ -105,6 +105,18 @@ function buildFallbackProduct(productId: string, productName: string): Product {
   }
 }
 
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, errorMessage: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(errorMessage)), ms)
+  })
+
+  return Promise.race([Promise.resolve(promise), timeoutPromise]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId)
+  })
+}
+
 export async function POST(request: Request) {
   try {
     const sessionId = getSessionIdFromRequest(request)
@@ -112,8 +124,16 @@ export async function POST(request: Request) {
 
     const body = (await request.json().catch(() => null)) as OrderCreateRequestBody | null
     if (!body) {
+      console.error("API ORDERS: missing/invalid JSON body")
       return NextResponse.json({ success: false, error: "Neplatná JSON žádost." }, { status: 400 })
     }
+
+    console.log("API ORDERS PŘIJATO", {
+      userId,
+      totalPrice: body.totalPrice,
+      itemsCount: Array.isArray(body.items) ? body.items.length : null,
+      customerEmail: body.customer?.email,
+    })
 
     const { customer, items, totalPrice } = body
     if (!customer || !Array.isArray(items) || typeof totalPrice !== "number") {
@@ -125,7 +145,7 @@ export async function POST(request: Request) {
     const editorStateForDb: OrderEditorStateForDb = groupDecorations(items)
     const { street, streetNumber } = parseStreet(customer.street)
 
-    const { data, error } = await supabase
+    const insertPromise = supabase
       .from("app_orders")
       .insert({
         id: `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
@@ -163,6 +183,12 @@ export async function POST(request: Request) {
       })
       .select("id")
       .single()
+
+    const { data, error } = await withTimeout(
+      insertPromise,
+      15000,
+      "Timeout při ukládání objednávky do Supabase (app_orders insert).",
+    )
 
     if (error) {
       console.error("CHYBA PŘI UKLÁDÁNÍ OBJEDNÁVKY (Supabase insert):", error)

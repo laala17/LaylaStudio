@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { useCart } from "@/lib/cart-context"
-import { useOrders, type CustomerInfo } from "@/lib/order-context"
+import type { CustomerInfo } from "@/lib/order-context"
 import { formatPrice } from "@/lib/products"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,7 +38,6 @@ function buildCustomerInfo(guestInfo: GuestInfo): CustomerInfo {
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, totalPrice, clearCart } = useCart()
-  const { addOrder } = useOrders()
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -112,111 +111,69 @@ export default function CheckoutPage() {
     setIsLoading(false)
     setIsSubmitting(true)
     setPaymentError("Začínám zpracování objednávky…")
-
     preventCartRedirectRef.current = false
 
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
     const customerInfo = isQuickOrder ? buildCustomerInfo(guestData) : formData
-
     document.cookie = `userEmail=${encodeURIComponent(customerInfo.email)}; path=/; max-age=31536000; SameSite=Lax`
 
-    // Create order in DB
-    let orderId: string | null = null
-    let ordersWaitTimer: ReturnType<typeof setTimeout> | null = null
     try {
-      ordersWaitTimer = setTimeout(() => {
-        setPaymentError("Čekám na odpověď z /api/orders…")
-      }, 5000)
+      // Optional small delay (keeps UI responsive / avoids double taps)
+      await new Promise((resolve) => setTimeout(resolve, 300))
 
-      const response = await withTimeout(
+      const orderData = { customer: customerInfo, items, totalPrice: finalTotal }
+
+      setPaymentError("Ukládám objednávku do databáze…")
+      const orderRes = await withTimeout(
         fetch("/api/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customer: customerInfo,
-            items,
-            totalPrice: finalTotal,
-          }),
+          body: JSON.stringify(orderData),
         }),
         15000,
         "Timeout při ukládání objednávky (/api/orders).",
       )
 
-      const data = await response.json().catch(() => null)
-      if (!response.ok || !data?.orderId) {
-        setPaymentError(`Uložení objednávky selhalo. (response=${JSON.stringify(data)})`)
-        setIsSubmitting(false)
-        return
+      const orderJson = (await orderRes.json().catch(() => null)) as { orderId?: string; error?: string } | null
+      if (!orderRes.ok) {
+        throw new Error(orderJson?.error ?? `Nepodařilo se uložit objednávku (status=${orderRes.status}).`)
+      }
+      if (!orderJson?.orderId) {
+        throw new Error(`Nepodařilo se získat ID objednávky. (response=${JSON.stringify(orderJson)})`)
       }
 
-      orderId = String(data.orderId)
-      if (ordersWaitTimer) clearTimeout(ordersWaitTimer)
-      setPaymentError("Objednávka uložena. Vytvářím Stripe checkout…")
-    } catch (error) {
-      console.error("Chyba při ukládání objednávky:", error)
-      if (ordersWaitTimer) clearTimeout(ordersWaitTimer)
-      setPaymentError(error instanceof Error ? error.message : "Chyba při ukládání objednávky.")
-      setIsSubmitting(false)
-      return
-    }
+      const orderId = String(orderJson.orderId)
+      console.log("Objednávka uložena, ID:", orderId)
+      setPaymentError("Objednávka uložena. Přípravuji platbu…")
 
-    const order = addOrder(items, customerInfo, finalTotal, { id: orderId ?? undefined })
+      // Prevent /kosik redirect while we’re going to Stripe
+      preventCartRedirectRef.current = true
+      clearCart()
 
-    // Prevent /kosik redirect while we’re going to Stripe
-    preventCartRedirectRef.current = true
-
-    // Clear cart
-    clearCart()
-
-    // Create Stripe checkout session
-    try {
-      setPaymentError("Stripe: čekám odpověď z /api/checkout…")
       const checkoutRes = await withTimeout(
         fetch("/api/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: order.id }),
+          body: JSON.stringify({ orderId, items }),
         }),
         15000,
         "Timeout při vytváření Stripe checkoutu (/api/checkout).",
       )
 
-      const checkoutData = await checkoutRes.json().catch(() => null)
-
-      const urlType = typeof checkoutData?.url === "string" && checkoutData.url.length > 0 ? "yes" : "no"
-      setPaymentError(
-        `Stripe checkout: ok=${checkoutRes.ok}, status=${checkoutRes.status}, url=${urlType}${
-          urlType === "yes" ? ` (${String(checkoutData.url).slice(0, 50)}…)` : ""
-        }`,
-      )
-      setIsSubmitting(false)
-
-      if (checkoutRes.ok && typeof checkoutData?.url === "string" && checkoutData.url.length > 0) {
-        setPaymentError("Přesměrovávám na Stripe…")
-        setTimeout(() => {
-          window.location.href = checkoutData.url
-        }, 50)
-        return
+      const checkoutJson = (await checkoutRes.json().catch(() => null)) as { url?: string; error?: string } | null
+      if (!checkoutRes.ok) {
+        throw new Error(checkoutJson?.error ?? `Nepodařilo se vygenerovat Stripe odkaz (status=${checkoutRes.status}).`)
+      }
+      if (!checkoutJson?.url || typeof checkoutJson.url !== "string") {
+        throw new Error(`Stripe nevrátil URL adresu pro přesměrování. (response=${JSON.stringify(checkoutJson)})`)
       }
 
-      console.error("Stripe checkout nebyl vytvořen:", {
-        ok: checkoutRes.ok,
-        status: checkoutRes.status,
-        data: checkoutData,
-      })
-
-      const msg =
-        checkoutData?.error ||
-        checkoutData?.details ||
-        `Nepodařilo se vytvořit Stripe checkout. status=${checkoutRes.status}`
-
-      setPaymentError(`${msg}${checkoutData ? ` (response=${JSON.stringify(checkoutData)})` : ""}`)
-      setIsSubmitting(false)
-      preventCartRedirectRef.current = false
+      setPaymentError("Přesměrovávám na Stripe…")
+      window.location.href = checkoutJson.url
     } catch (error) {
-      console.error("Chyba při vytvoření Stripe checkoutu:", error)
-      setPaymentError(error instanceof Error ? error.message : "Chyba při vytvoření Stripe checkoutu.")
+      console.error("Chyba při odeslání objednávky:", error)
+      const message = error instanceof Error ? error.message : "Neznámá chyba při odeslání objednávky."
+      setPaymentError(message)
+      alert(message)
       setIsSubmitting(false)
       preventCartRedirectRef.current = false
     }
@@ -525,12 +482,7 @@ export default function CheckoutPage() {
                 className="w-full"
                 size="lg"
                 disabled={isSubmitting}
-                onClick={() => {
-                  // Tohle zajistí, že uživatel uvidí debug text i když se handleSubmit z nějakého důvodu nespustí
-                  setIsLoading(false)
-                  setIsSubmitting(true)
-                  setPaymentError("Začínám zpracování objednávky…")
-                }}
+                onClick={() => setPaymentError("Začínám zpracování objednávky…")}
               >
                 {isSubmitting ? "Zpracovávám..." : "Dokončit objednávku"}
               </Button>
