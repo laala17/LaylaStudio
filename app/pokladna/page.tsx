@@ -133,12 +133,13 @@ export default function CheckoutPage() {
         "Timeout při ukládání objednávky (/api/orders).",
       )
 
+      // Na mobilu chceme vidět syrovou chybu: pokud status není 200, zaloguj i alertuj.
       const orderJson = (await orderRes.json().catch(() => null)) as { orderId?: string; error?: string } | null
-      if (!orderRes.ok) {
-        throw new Error(orderJson?.error ?? `Nepodařilo se uložit objednávku (status=${orderRes.status}).`)
+      if (orderRes.status !== 200) {
+        throw { source: "/api/orders", status: orderRes.status, response: orderJson }
       }
       if (!orderJson?.orderId) {
-        throw new Error(`Nepodařilo se získat ID objednávky. (response=${JSON.stringify(orderJson)})`)
+        throw { source: "/api/orders", status: orderRes.status, response: orderJson }
       }
 
       const orderId = String(orderJson.orderId)
@@ -160,20 +161,26 @@ export default function CheckoutPage() {
       )
 
       const checkoutJson = (await checkoutRes.json().catch(() => null)) as { url?: string; error?: string } | null
-      if (!checkoutRes.ok) {
-        throw new Error(checkoutJson?.error ?? `Nepodařilo se vygenerovat Stripe odkaz (status=${checkoutRes.status}).`)
+      if (checkoutRes.status !== 200) {
+        throw { source: "/api/checkout", status: checkoutRes.status, response: checkoutJson }
       }
       if (!checkoutJson?.url || typeof checkoutJson.url !== "string") {
-        throw new Error(`Stripe nevrátil URL adresu pro přesměrování. (response=${JSON.stringify(checkoutJson)})`)
+        throw { source: "/api/checkout", status: checkoutRes.status, response: checkoutJson }
       }
 
       setPaymentError("Přesměrovávám na Stripe…")
       window.location.href = checkoutJson.url
     } catch (error) {
       console.error("Chyba při odeslání objednávky:", error)
-      const message = error instanceof Error ? error.message : "Neznámá chyba při odeslání objednávky."
+
+      // Na mobilu ukážeme syrový error z API.
+      window.alert(JSON.stringify(error))
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : (typeof error === "object" && error && "source" in error ? `${(error as any).source} failed` : "Neznámá chyba při odeslání objednávky.")
       setPaymentError(message)
-      alert(message)
       setIsSubmitting(false)
       preventCartRedirectRef.current = false
     }
