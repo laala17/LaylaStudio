@@ -1,9 +1,9 @@
 "use client"
 
-import { use } from "react"
+import { useEffect, useMemo, useState, use } from "react"
 import Link from "next/link"
 import { CheckCircle } from "lucide-react"
-import { useOrders } from "@/lib/order-context"
+import { useOrders, type Order } from "@/lib/order-context"
 import { formatPrice } from "@/lib/products"
 import { Button } from "@/components/ui/button"
 
@@ -14,16 +14,56 @@ interface OrderConfirmationPageProps {
 export default function OrderConfirmationPage({ params }: OrderConfirmationPageProps) {
   const { id } = use(params)
   const { getOrderById } = useOrders()
-  const order = getOrderById(id)
+
+  const localOrder = useMemo(() => getOrderById(id), [getOrderById, id])
+  const [order, setOrder] = useState<Order | null>(localOrder ?? null)
+  const [isLoading, setIsLoading] = useState(localOrder ? false : true)
+
+  useEffect(() => {
+    setOrder(localOrder ?? null)
+    setIsLoading(localOrder ? false : true)
+  }, [localOrder])
+
+  useEffect(() => {
+    if (order) return
+
+    let cancelled = false
+    const load = async () => {
+      try {
+        setIsLoading(true)
+        const res = await fetch("/api/orders", { method: "GET", credentials: "include" })
+        if (!res.ok) return
+
+        const data = (await res.json()) as { orders?: Order[] }
+        const orders = Array.isArray(data.orders) ? data.orders : []
+        const found = orders.find((o) => o.id === id) ?? null
+
+        if (!cancelled) setOrder(found)
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [id, order])
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-20 flex justify-center">
+        <div className="text-muted-foreground">Načítání objednávky…</div>
+      </div>
+    )
+  }
 
   if (!order) {
     return (
       <div className="container mx-auto px-4 py-20">
         <div className="max-w-md mx-auto text-center">
           <h1 className="text-2xl font-semibold mb-4">Objednávka nenalezena</h1>
-          <p className="text-muted-foreground mb-8">
-            Tato objednávka neexistuje nebo byla odstraněna.
-          </p>
+          <p className="text-muted-foreground mb-8">Tato objednávka neexistuje nebo byla odstraněna.</p>
           <Link href="/">
             <Button>Zpět na hlavní stránku</Button>
           </Link>
@@ -49,9 +89,7 @@ export default function OrderConfirmationPage({ params }: OrderConfirmationPageP
             <CheckCircle className="h-10 w-10 text-green-600" />
           </div>
           <h1 className="text-3xl font-semibold mb-4">Děkujeme za objednávku!</h1>
-          <p className="text-muted-foreground">
-            Vaše objednávka byla úspěšně přijata. Potvrzení jsme vám odeslali na e-mail.
-          </p>
+          <p className="text-muted-foreground">Vaše objednávka byla úspěšně přijata. Potvrzení jsme vám odeslali na e-mail.</p>
         </div>
 
         {/* Order Details */}
@@ -78,23 +116,17 @@ export default function OrderConfirmationPage({ params }: OrderConfirmationPageP
                       <span className="font-medium">
                         {item.product.name} (vel. {item.size}) × {item.quantity}
                       </span>
-                      <span className="font-medium">
-                        {formatPrice(item.product.price * item.quantity)}
-                      </span>
+                      <span className="font-medium">{formatPrice(item.product.price * item.quantity)}</span>
                     </div>
+
                     <div className="mt-3 text-sm text-muted-foreground space-y-1">
                       {item.customization?.view ? (
-                        <p>
-                          Strana: {item.customization.view === "front" ? "Zepředu" : "Zezadu"}
-                        </p>
+                        <p>Strana: {item.customization.view === "front" ? "Zepředu" : "Zezadu"}</p>
                       ) : null}
-                      {item.customization?.heartBetweenBreasts ? (
-                        <p>Srdíčko mezi prsa</p>
-                      ) : null}
-                      {item.customization?.padding ? (
-                        <p>Vycpávky</p>
-                      ) : null}
+                      {item.customization?.heartBetweenBreasts ? <p>Srdíčko mezi prsa</p> : null}
+                      {item.customization?.padding ? <p>Vycpávky</p> : null}
                     </div>
+
                     {item.customization?.previewImage ? (
                       <img
                         src={item.customization.previewImage}
@@ -142,9 +174,7 @@ export default function OrderConfirmationPage({ params }: OrderConfirmationPageP
             </Button>
           </Link>
           <Link href="/">
-            <Button className="w-full sm:w-auto">
-              Zpět na hlavní stránku
-            </Button>
+            <Button className="w-full sm:w-auto">Zpět na hlavní stránku</Button>
           </Link>
         </div>
       </div>

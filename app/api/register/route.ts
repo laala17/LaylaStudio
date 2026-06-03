@@ -34,7 +34,15 @@ export async function POST(request: Request) {
     await createUserWithVerification(email, password, verificationToken)
 
     if (!resend) {
-      return NextResponse.json({ error: "Chybí RESEND_API_KEY v prostředí Vercelu." }, { status: 500 })
+      // Dev/local fallback: user/token se vytvoří, ale e-mail se neodešle.
+      // Aby šlo hned testovat login i bez verifikace, uživatele označíme jako verified.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      await import("@/lib/supabase-users").then((m) => m.setUserVerifiedAndClearToken(verificationToken))
+
+      return NextResponse.json({
+        ok: true,
+        warning: "RESEND_API_KEY chybí — ověřovací e-mail se neodeslal (dev fallback: user je verified).",
+      })
     }
 
     try {

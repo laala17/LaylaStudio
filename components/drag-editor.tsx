@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react"
+import type { DragEditorState } from "@/lib/editor-state"
 
 interface PaletteItem {
   id: string
@@ -111,9 +112,10 @@ interface DragEditorProps {
   compact?: boolean
   images?: string[]
   onPreviewChange?: (preview: DragEditorPreview) => void
+  onEditorStateChange?: (state: DragEditorState) => void
 }
 
-export function DragEditor({ compact = false, images = [], onPreviewChange }: DragEditorProps) {
+export function DragEditor({ compact = false, images = [], onPreviewChange, onEditorStateChange }: DragEditorProps) {
   const canvasAreaRef = useRef<HTMLDivElement | null>(null)
   const [items, setItems] = useState<CanvasItem[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -394,6 +396,31 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
 
     generatePreviewImage()
   }, [items, selectedView])
+
+  useEffect(() => {
+    const frontSrc = images[0] ?? ""
+    const backSrc = images[1] ?? images[0] ?? ""
+
+    const state: DragEditorState = {
+      selectedView,
+      background: {
+        frontSrc,
+        backSrc,
+      },
+      items: items.map((item) => ({
+        id: item.id,
+        src: item.src,
+        name: item.name,
+        left: item.left,
+        top: item.top,
+        width: item.width,
+        height: item.height,
+        view: item.view,
+      })),
+    }
+
+    onEditorStateChange?.(state)
+  }, [items, selectedView, images, onEditorStateChange])
 
   return (
     <div className={`drag-editor${compact ? " compact" : ""}`}>

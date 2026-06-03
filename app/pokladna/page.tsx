@@ -97,10 +97,36 @@ export default function CheckoutPage() {
     await new Promise((resolve) => setTimeout(resolve, 1500))
 
     const customerInfo = isQuickOrder ? buildCustomerInfo(guestData) : formData
-    const order = addOrder(items, customerInfo, finalTotal)
 
     // Save current customer email to cookie so historie objednávek zůstane osobní
     document.cookie = `userEmail=${encodeURIComponent(customerInfo.email)}; path=/; max-age=31536000; SameSite=Lax`
+
+    // Uložit objednávku do Supabase + získat orderId
+    let orderId: string | null = null
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer: customerInfo,
+          items,
+          totalPrice: finalTotal,
+        }),
+      })
+
+      const data = await response.json().catch(() => null)
+      if (!response.ok || !data?.orderId) {
+        console.error("Uložení objednávky selhalo:", data)
+        return
+      }
+
+      orderId = String(data.orderId)
+    } catch (error) {
+      console.error("Chyba při ukládání objednávky:", error)
+      return
+    }
+
+    const order = addOrder(items, customerInfo, finalTotal, { id: orderId ?? undefined })
 
     // Send order confirmation email
     try {
@@ -128,7 +154,24 @@ export default function CheckoutPage() {
     // Clear cart
     clearCart()
 
-    // Redirect to confirmation page
+    // Redirect to Stripe checkout
+    try {
+      const checkoutRes = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id }),
+      })
+
+      const checkoutData = await checkoutRes.json().catch(() => null)
+      if (checkoutRes.ok && checkoutData?.url) {
+        window.location.href = String(checkoutData.url)
+        return
+      }
+    } catch (error) {
+      console.error("Chyba při vytvoření Stripe checkoutu:", error)
+    }
+
+    // Fallback: redirect to confirmation page if Stripe redirect fails
     router.push(`/objednavka/${order.id}`)
   }
 

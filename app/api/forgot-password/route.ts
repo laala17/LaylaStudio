@@ -26,7 +26,15 @@ export async function POST(request: Request) {
   await setResetPasswordToken(email, resetToken)
 
   if (!resend) {
-    return NextResponse.json({ error: "Chybí RESEND_API_KEY v prostředí." }, { status: 500 })
+    // Dev/local fallback: vytvoříme token do DB, ale e-mail se neodešle.
+    // Vracíme resetToken jen v dev módu, aby šlo otestovat /api/reset-password.
+    const tokenForDev = process.env.NODE_ENV === "production" ? undefined : resetToken
+
+    return NextResponse.json({
+      ok: true,
+      warning: "RESEND_API_KEY chybí — e-mail se neodeslal (dev fallback).",
+      resetToken: tokenForDev,
+    })
   }
 
   await resend.emails.send({

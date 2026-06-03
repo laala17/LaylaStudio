@@ -25,7 +25,12 @@ export interface Order {
 
 interface OrderContextType {
   orders: Order[]
-  addOrder: (items: CartItem[], customer: CustomerInfo, totalPrice: number) => Order
+  addOrder: (
+    items: CartItem[],
+    customer: CustomerInfo,
+    totalPrice: number,
+    options?: { id?: string; status?: Order["status"]; createdAt?: string }
+  ) => Order
   getOrderById: (id: string) => Order | undefined
 }
 
@@ -36,19 +41,59 @@ function generateOrderId(): string {
 }
 
 export function OrderProvider({ children }: { children: ReactNode }) {
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orders, setOrders] = useState<Order[]>(() => {
+    if (typeof window === "undefined") return []
+    const savedOrders = localStorage.getItem("orders")
+    if (!savedOrders) return []
+    try {
+      return JSON.parse(savedOrders) as Order[]
+    } catch {
+      return []
+    }
+  })
   const [isHydrated, setIsHydrated] = useState(false)
 
   useEffect(() => {
-    const savedOrders = localStorage.getItem("orders")
-    if (savedOrders) {
+    let cancelled = false
+
+    const loadOrders = async () => {
+      // Fallback: kdyby API z nějakého důvodu nešlo, použijeme localStorage
+      const loadFromLocalStorage = () => {
+        const savedOrders = localStorage.getItem("orders")
+        if (!savedOrders) return []
+        try {
+          return JSON.parse(savedOrders) as Order[]
+        } catch {
+          return []
+        }
+      }
+
       try {
-        setOrders(JSON.parse(savedOrders))
+        const response = await fetch("/api/orders", {
+          method: "GET",
+          credentials: "include",
+        })
+
+        if (!response.ok) {
+          throw new Error(`GET /api/orders failed: ${response.status}`)
+        }
+
+        const data = (await response.json()) as { orders?: Order[] }
+        const apiOrders = Array.isArray(data.orders) ? data.orders : []
+
+        if (!cancelled) setOrders(apiOrders)
       } catch {
-        setOrders([])
+        const fallbackOrders = loadFromLocalStorage()
+        if (!cancelled) setOrders(fallbackOrders)
+      } finally {
+        if (!cancelled) setIsHydrated(true)
       }
     }
-    setIsHydrated(true)
+
+    loadOrders()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -57,14 +102,19 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
   }, [orders, isHydrated])
 
-  const addOrder = (items: CartItem[], customer: CustomerInfo, totalPrice: number): Order => {
+  const addOrder = (
+    items: CartItem[],
+    customer: CustomerInfo,
+    totalPrice: number,
+    options?: { id?: string; status?: Order["status"]; createdAt?: string }
+  ): Order => {
     const newOrder: Order = {
-      id: generateOrderId(),
+      id: options?.id ?? generateOrderId(),
       items,
       customer,
       totalPrice,
-      status: "pending",
-      createdAt: new Date().toISOString(),
+      status: options?.status ?? "pending",
+      createdAt: options?.createdAt ?? new Date().toISOString(),
     }
 
     setOrders((currentOrders) => [...currentOrders, newOrder])

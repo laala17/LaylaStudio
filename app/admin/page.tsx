@@ -55,7 +55,12 @@ export default function Admin() {
       <div className="grid gap-6">
         <div className="p-6 rounded-lg border border-border bg-card">
           <h2 className="text-xl font-semibold mb-4">Objednávky</h2>
-          <p className="text-muted-foreground">Zde se brzy zobrazí přehled objednávek.</p>
+          <p className="text-muted-foreground mb-4">
+            Otevři přehled objednávek pro výrobu a konfigurace z editoru.
+          </p>
+          <Button variant="outline" onClick={() => router.push("/admin/orders")}>
+            Přejít na objednávky
+          </Button>
         </div>
       </div>
     </div>

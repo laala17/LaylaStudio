@@ -9,6 +9,7 @@ import { getProductById, formatPrice } from "@/lib/products"
 import { useCart } from "@/lib/cart-context"
 import { Button } from "@/components/ui/button"
 import { DragEditor } from "@/components/drag-editor"
+import type { DragEditorState } from "@/lib/editor-state"
 
 interface ProductPageProps {
   params: Promise<{ id: string }>
@@ -30,6 +31,7 @@ export default function ProductPage({ params }: ProductPageProps) {
     view: "front" | "back"
   } | null>(null)
   const [isAdded, setIsAdded] = useState(false)
+  const [dragEditorState, setDragEditorState] = useState<DragEditorState | null>(null)
 
   if (!product) {
     notFound()
@@ -42,6 +44,7 @@ export default function ProductPage({ params }: ProductPageProps) {
       ...(customizationPreview?.previewImage
         ? { previewImage: customizationPreview.previewImage, view: customizationPreview.view }
         : {}),
+      ...(dragEditorState ? { editorState: dragEditorState } : {}),
       ...(addHeart ? { heartBetweenBreasts: true } : {}),
       ...(addPadding ? { padding: true } : {}),
     }
@@ -229,6 +232,7 @@ export default function ProductPage({ params }: ProductPageProps) {
         compact
         images={product.images ?? [product.image]}
         onPreviewChange={setCustomizationPreview}
+        onEditorStateChange={setDragEditorState}
       />
     </div>
   )

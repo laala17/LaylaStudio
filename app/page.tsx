@@ -16,16 +16,6 @@ export default function HomePage() {
         />
       </div>
 
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <Image
-          src="/images/"
-          alt="Head decoration"
-          fill
-          className="object-cover opacity-35"
-          priority
-        />
-      </div>
-
       <div className="container relative z-10 mx-auto px-4 py-20 text-center">
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-balance mb-6">
           Elegance pro<br />letní dny
