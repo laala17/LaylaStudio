@@ -8,7 +8,7 @@ export default function HomePage() {
     <section className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden bg-muted">
       <div className="absolute inset-0">
         <Image
-          src="/images/swimwear-1.jpg"
+          src="/images/IMG_3096.jpeg"
           alt="Hero background"
           fill
           className="object-cover opacity-20"
