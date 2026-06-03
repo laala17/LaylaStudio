@@ -1,45 +1,29 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { ShoppingBag, Menu, ArrowLeft, Clock3 } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useEffect, useState } from "react"
 
 export function Header() {
   const { totalItems } = useCart()
-  const [isOpen, setIsOpen] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const router = useRouter()
   const pathname = usePathname()
 
   const isHomePage = pathname === "/"
 
+  const [isOpen, setIsOpen] = useState(false)
+
+  // We don’t need /api/auth/verify (customer auth disabled).
+  // Order history is accessible via the `userEmail` cookie set at checkout.
+  const [hasUserEmail, setHasUserEmail] = useState(false)
+
   useEffect(() => {
-    let isMounted = true
-
-    const verifyAuth = async () => {
-      try {
-        const response = await fetch("/api/auth/verify", {
-          method: "GET",
-          credentials: "include",
-        })
-
-        if (!isMounted) return
-        setIsAuthenticated(response.ok)
-      } catch {
-        if (!isMounted) return
-        setIsAuthenticated(false)
-      }
-    }
-
-    verifyAuth()
-
-    return () => {
-      isMounted = false
-    }
+    const match = document.cookie.match(/(?:^|;\s*)userEmail=([^;]+)/)
+    setHasUserEmail(Boolean(match))
   }, [])
 
   return (
@@ -65,7 +49,7 @@ export function Header() {
           </SheetTrigger>
           <SheetContent side="right" className="w-[300px]">
             <nav className="flex flex-col gap-4 mt-8">
-              {isAuthenticated ? (
+              {hasUserEmail ? (
                 <Link
                   href="/order-history"
                   onClick={() => setIsOpen(false)}
@@ -75,6 +59,7 @@ export function Header() {
                   Historie objednávek
                 </Link>
               ) : null}
+
               <Link
                 href="/kosik"
                 onClick={() => setIsOpen(false)}
@@ -87,20 +72,6 @@ export function Header() {
                     {totalItems}
                   </span>
                 )}
-              </Link>
-              <Link
-                href="/login"
-                onClick={() => setIsOpen(false)}
-                className="text-lg font-medium transition-colors hover:text-primary"
-              >
-                Přihlášení
-              </Link>
-              <Link
-                href="/register"
-                onClick={() => setIsOpen(false)}
-                className="text-lg font-medium transition-colors hover:text-primary"
-              >
-                Registrace
               </Link>
             </nav>
           </SheetContent>
