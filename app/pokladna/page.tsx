@@ -42,6 +42,7 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isQuickOrder, setIsQuickOrder] = useState(false)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
   const [formData, setFormData] = useState<CustomerInfo>({
     firstName: "",
     lastName: "",
@@ -128,34 +129,13 @@ export default function CheckoutPage() {
 
     const order = addOrder(items, customerInfo, finalTotal, { id: orderId ?? undefined })
 
-    // Send order confirmation email
-    try {
-      const orderDate = new Date().toLocaleDateString("cs-CZ", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      })
-
-      await fetch("/api/order-confirmation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderNumber: order.id,
-          customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
-          email: customerInfo.email,
-          total: finalTotal,
-          orderDate,
-        }),
-      })
-    } catch (error) {
-      console.error("Chyba při odesílání potvrzovacího emailu:", error)
-    }
-
     // Clear cart
     clearCart()
 
     // Redirect to Stripe checkout
     try {
+      setPaymentError(null)
+
       const checkoutRes = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -163,16 +143,30 @@ export default function CheckoutPage() {
       })
 
       const checkoutData = await checkoutRes.json().catch(() => null)
+
       if (checkoutRes.ok && checkoutData?.url) {
         window.location.href = String(checkoutData.url)
         return
       }
+
+      console.error("Stripe checkout nebyl vytvořen:", {
+        ok: checkoutRes.ok,
+        status: checkoutRes.status,
+        data: checkoutData,
+      })
+
+      const msg =
+        checkoutData?.error || checkoutData?.details || "Nepodařilo se vytvořit Stripe checkout."
+
+      setPaymentError(String(msg))
+      setIsSubmitting(false)
+      return
     } catch (error) {
       console.error("Chyba při vytvoření Stripe checkoutu:", error)
+      setPaymentError("Chyba při vytvoření Stripe checkoutu.")
+      setIsSubmitting(false)
+      return
     }
-
-    // Fallback: redirect to confirmation page if Stripe redirect fails
-    router.push(`/objednavka/${order.id}`)
   }
 
   if (isLoading || items.length === 0) {

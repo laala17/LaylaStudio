@@ -1,0 +1,32 @@
+{
+  "customer": {
+    "firstName": "Test",
+    "lastName": "User",
+    "email": "stripe_test@example.com",
+    "phone": "123456789",
+    "street": "Main 1",
+    "city": "Prague",
+    "zipCode": "11000",
+    "country": "Czechia"
+  },
+  "items": [
+    {
+      "id": "ci1",
+      "product": {
+        "id": "p1",
+        "name": "Test Product",
+        "description": "",
+        "price": 1000,
+        "image": "/images/placeholder.jpg",
+        "category": "",
+        "sizes": [],
+        "colors": [],
+        "inStock": true
+      },
+      "quantity": 1,
+      "size": "M",
+      "customization": null
+    }
+  ],
+  "totalPrice": 1099
+}
