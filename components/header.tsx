@@ -60,6 +60,20 @@ export function Header() {
                   </span>
                 )}
               </Link>
+              <Link
+                href="/login"
+                onClick={() => setIsOpen(false)}
+                className="text-lg font-medium transition-colors hover:text-primary"
+              >
+                Přihlášení
+              </Link>
+              <Link
+                href="/register"
+                onClick={() => setIsOpen(false)}
+                className="text-lg font-medium transition-colors hover:text-primary"
+              >
+                Registrace
+              </Link>
             </nav>
           </SheetContent>
         </Sheet>

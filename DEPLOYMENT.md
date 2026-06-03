@@ -59,7 +59,9 @@ docker run -p 3000:80 layalastudio
 Pokud používáte Vercel/Netlify:
 1. Jdete do nastavení projektu
 2. Environment Variables
-3. Můžete přidat jaké chcete proměnné
+3. Přidejte tyto proměnné:
+   - `NEXT_PUBLIC_APP_URL` (např. `https://vase-stranka.vercel.app`)
+   - `RESEND_API_KEY`
 4. `.env.example` je připraven pro kopírování
 
 ## Co je k nasazení potřeba

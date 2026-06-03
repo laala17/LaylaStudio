@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { useCart } from "@/lib/cart-context"
@@ -11,18 +11,52 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 
+interface GuestInfo {
+  fullName: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  zipCode: string
+  country: string
+}
+
+function buildCustomerInfo(guestInfo: GuestInfo): CustomerInfo {
+  const parts = guestInfo.fullName.trim().split(" ").filter(Boolean)
+  return {
+    firstName: parts[0] || "",
+    lastName: parts.slice(1).join(" ") || "",
+    email: guestInfo.email,
+    phone: guestInfo.phone,
+    street: guestInfo.address,
+    city: guestInfo.city,
+    zipCode: guestInfo.zipCode,
+    country: guestInfo.country,
+  }
+}
+
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, totalPrice, clearCart } = useCart()
   const { addOrder } = useOrders()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isQuickOrder, setIsQuickOrder] = useState(false)
   const [formData, setFormData] = useState<CustomerInfo>({
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
     street: "",
+    city: "",
+    zipCode: "",
+    country: "Česká republika",
+  })
+  const [guestData, setGuestData] = useState<GuestInfo>({
+    fullName: "",
+    email: "",
+    phone: "",
+    address: "",
     city: "",
     zipCode: "",
     country: "Česká republika",
@@ -50,15 +84,23 @@ export default function CheckoutPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleGuestInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setGuestData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     // Simulate payment processing delay
     await new Promise((resolve) => setTimeout(resolve, 1500))
 
-    // Create order
-    const order = addOrder(items, formData, finalTotal)
+    const customerInfo = isQuickOrder ? buildCustomerInfo(guestData) : formData
+    const order = addOrder(items, customerInfo, finalTotal)
+
+    // Save current customer email to cookie so historie objednávek zůstane osobní
+    document.cookie = `userEmail=${encodeURIComponent(customerInfo.email)}; path=/; max-age=31536000; SameSite=Lax`
 
     // Clear cart
     clearCart()
@@ -92,54 +134,169 @@ export default function CheckoutPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Checkout Form */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Contact Info */}
-            <div className="p-6 rounded-xl border border-border bg-card">
-              <h2 className="text-lg font-semibold mb-6">Kontaktní údaje</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">Jméno *</Label>
-                  <Input
-                    id="firstName"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Příjmení *</Label>
-                  <Input
-                    id="lastName"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-mail *</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefon *</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    required
-                  />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setIsQuickOrder(false)}
+                className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                  !isQuickOrder ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700"
+                }`}
+              >
+                Plná objednávka
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsQuickOrder(true)}
+                className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                  isQuickOrder ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-700"
+                }`}
+              >
+                Rychlá objednávka bez registrace
+              </button>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
+              {isQuickOrder ? (
+                <p>
+                  Vyplňte pouze základní údaje a objednávku dokončíte bez registrace. Adresa a e-mail jsou povinné.
+                </p>
+              ) : (
+                <p>
+                  Plná objednávka zahrnuje kompletní kontaktní údaje a doručovací adresu. Pokud chcete rychle objednat, zvolte rychlý režim.
+                </p>
+              )}
+            </div>
+
+            {isQuickOrder ? (
+              <div className="p-6 rounded-xl border border-border bg-card">
+                <h2 className="text-lg font-semibold mb-6">Rychlá objednávka</h2>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Jméno a příjmení *</Label>
+                    <Input
+                      id="fullName"
+                      name="fullName"
+                      value={guestData.fullName}
+                      onChange={handleGuestInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">E-mail *</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={guestData.email}
+                      onChange={handleGuestInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Telefon *</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={guestData.phone}
+                      onChange={handleGuestInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Ulice a číslo popisné *</Label>
+                    <Input
+                      id="address"
+                      name="address"
+                      value={guestData.address}
+                      onChange={handleGuestInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="city">Město *</Label>
+                      <Input
+                        id="city"
+                        name="city"
+                        value={guestData.city}
+                        onChange={handleGuestInputChange}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="zipCode">PSČ *</Label>
+                      <Input
+                        id="zipCode"
+                        name="zipCode"
+                        value={guestData.zipCode}
+                        onChange={handleGuestInputChange}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="country">Země</Label>
+                    <Input
+                      id="country"
+                      name="country"
+                      value={guestData.country}
+                      onChange={handleGuestInputChange}
+                      disabled
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Contact Info */}
+                <div className="p-6 rounded-xl border border-border bg-card">
+                  <h2 className="text-lg font-semibold mb-6">Kontaktní údaje</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">Jméno *</Label>
+                      <Input
+                        id="firstName"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Příjmení *</Label>
+                      <Input
+                        id="lastName"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">E-mail *</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Telefon *</Label>
+                      <Input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
 
             {/* Delivery Address */}
             <div className="p-6 rounded-xl border border-border bg-card">
@@ -228,6 +385,8 @@ export default function CheckoutPage() {
                 * Pro aktivaci online platby přidejte Stripe API klíče
               </p>
             </div>
+          </>
+            )}
           </div>
 
           {/* Order Summary */}
