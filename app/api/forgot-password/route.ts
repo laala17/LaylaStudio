@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     await resend.emails.send({
       from: "onboarding@resend.dev",
       to: [email],
-      subject: "Obnovení hesla | Layalastudio",
+      subject: "Obnovení hesla | LayalaStudio",
       html: `
         <!DOCTYPE html>
         <html>
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
           <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
             <!-- Header -->
             <div style="background-color: #111111; padding: 40px 20px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Layalastudio</h1>
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">LayalaStudio</h1>
             </div>
 
             <!-- Content -->
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
             <!-- Footer -->
             <div style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
               <p style="margin: 0 0 10px 0; font-size: 13px; color: #999999;">S pozdravem,</p>
-              <p style="margin: 0; font-size: 15px; color: #111111; font-weight: 600;">Layalastudio</p>
+              <p style="margin: 0; font-size: 15px; color: #111111; font-weight: 600;">LayalaStudio</p>
             </div>
           </div>
         </body>
