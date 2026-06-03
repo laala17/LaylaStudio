@@ -954,8 +954,7 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
 
           .panel {
             min-height: auto;
-            max-height: 420px;
-            overflow-y: auto;
+            overflow: visible;
           }
 
           .panel-header h3 {
@@ -978,14 +977,24 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           }
 
           .items-list {
-            gap: 0.75rem;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            gap: 0.5rem;
             padding: 0.75rem 1rem 1rem;
-            grid-template-columns: 1fr;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
           }
 
           .item-card {
-            padding: 0.75rem 0.85rem;
-            gap: 0.75rem;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            width: 72px;
+            min-width: 72px;
+            padding: 0.5rem 0.4rem;
+            gap: 0.3rem;
+            border-radius: 16px;
           }
 
           .item-card img {
@@ -995,7 +1004,9 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           }
 
           .item-card strong {
-            font-size: 0.9rem;
+            font-size: 0.7rem;
+            text-align: center;
+            line-height: 1.2;
           }
 
           .mobile-hint {
@@ -1019,13 +1030,14 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           }
 
           .drop-zone {
-            min-height: 380px;
+            min-height: auto;
             border-radius: 20px;
-            padding: 1rem;
+            padding: 0.75rem;
           }
 
           .canvas-inner {
-            width: 100%;
+            width: auto;
+            height: min(58vh, 460px);
             max-width: 100%;
             aspect-ratio: 3 / 4;
             border-radius: 20px;
@@ -1142,13 +1154,14 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           }
 
           .drop-zone {
-            min-height: 340px;
+            min-height: auto;
             border-radius: 18px;
-            padding: 0.75rem;
+            padding: 0.6rem;
             border-width: 2px;
           }
 
           .canvas-inner {
+            height: min(54vh, 420px);
             border-radius: 18px;
             aspect-ratio: 3 / 4;
           }
@@ -1256,12 +1269,13 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
           }
 
           .drop-zone {
-            min-height: 320px;
+            min-height: auto;
             border-radius: 16px;
-            padding: 0.6rem;
+            padding: 0.5rem;
           }
 
           .canvas-inner {
+            height: min(52vh, 380px);
             border-radius: 16px;
           }
 
