@@ -66,11 +66,6 @@ export default function CartPage() {
               </div>
 
               <div className="flex-1 min-w-0">
-                {item.customization?.view ? (
-                  <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground mb-2">
-                    Strana: {item.customization.view === "front" ? "Zepředu" : "Zezadu"}
-                  </p>
-                ) : null}
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <Link

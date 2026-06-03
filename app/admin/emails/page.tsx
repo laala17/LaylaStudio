@@ -1,22 +1,44 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 
 export default function EmailLogPage() {
+  const router = useRouter()
   const [logs, setLogs] = useState<any[]>([])
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
-    // Každých 5 vteřin zkontrolujeme, jestli nepřibyl nový uživatel s tokenem
-    const interval = setInterval(async () => {
-      const res = await fetch("/api/register-logs") // Pomocná trasa pro čtení z "databáze"
+    let interval: ReturnType<typeof setInterval> | undefined
+
+    const loadLogs = async () => {
+      const res = await fetch("/api/register-logs")
+      if (res.status === 401) {
+        router.push("/admin/login")
+        return
+      }
       if (res.ok) {
+        setIsAuthenticated(true)
         const data = await res.json()
         setLogs(data.users || [])
       }
-    }, 5000)
+    }
 
-    return () => clearInterval(interval)
-  }, [])
+    loadLogs()
+    interval = setInterval(loadLogs, 5000)
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [router])
+
+  if (!isAuthenticated) {
+    return (
+      <div style={{ padding: "40px", fontFamily: "sans-serif", maxWidth: "800px", margin: "0 auto", color: "#666" }}>
+        Ověřuji přístup…
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: "40px", fontFamily: "sans-serif", maxWidth: "800px", margin: "0 auto" }}>
