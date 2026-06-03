@@ -947,6 +947,23 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
             line-height: 1.5;
           }
 
+          .drag-editor.compact .editor-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+          }
+
+          .drag-editor.compact .canvas-panel {
+            order: 1;
+          }
+
+          .drag-editor.compact .panel {
+            order: 2;
+            min-height: auto;
+            max-height: none;
+            overflow: visible;
+          }
+
           .editor-layout {
             grid-template-columns: 1fr;
             gap: 1rem;
@@ -1008,6 +1025,10 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
             min-height: auto;
           }
 
+          .drag-editor.compact .canvas-body {
+            min-height: auto;
+          }
+
           .view-switcher {
             margin-bottom: 0.75rem;
             gap: 0.5rem;
@@ -1022,6 +1043,10 @@ export function DragEditor({ compact = false, images = [], onPreviewChange }: Dr
             min-height: 380px;
             border-radius: 20px;
             padding: 1rem;
+          }
+
+          .drag-editor.compact .drop-zone {
+            min-height: min(62vh, 560px);
           }
 
           .canvas-inner {

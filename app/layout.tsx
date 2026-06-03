@@ -8,6 +8,9 @@ import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import './globals.css'
 
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+const metadataBase = new URL(siteUrl)
+
 const geistSans = Geist({ 
   subsets: ["latin"],
   variable: "--font-geist-sans"
@@ -18,6 +21,10 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase,
+  alternates: {
+    canonical: '/',
+  },
   title: 'LayalaStudio | Personalizované plavky',
   description: 'LayalaStudio — Vytváříme jedinečné personalizované plavky s vlastními návrhy. Elegance, kvalita a kreativita.',
 }

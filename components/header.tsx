@@ -1,20 +1,46 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { ShoppingBag, Menu, ArrowLeft, Clock3 } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 export function Header() {
   const { totalItems } = useCart()
   const [isOpen, setIsOpen] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const router = useRouter()
   const pathname = usePathname()
 
   const isHomePage = pathname === "/"
+
+  useEffect(() => {
+    let isMounted = true
+
+    const verifyAuth = async () => {
+      try {
+        const response = await fetch("/api/auth/verify", {
+          method: "GET",
+          credentials: "include",
+        })
+
+        if (!isMounted) return
+        setIsAuthenticated(response.ok)
+      } catch {
+        if (!isMounted) return
+        setIsAuthenticated(false)
+      }
+    }
+
+    verifyAuth()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -39,14 +65,16 @@ export function Header() {
           </SheetTrigger>
           <SheetContent side="right" className="w-[300px]">
             <nav className="flex flex-col gap-4 mt-8">
-              <Link
-                href="/order-history"
-                onClick={() => setIsOpen(false)}
-                className="text-lg font-medium transition-colors hover:text-primary flex items-center gap-2"
-              >
-                <Clock3 className="h-5 w-5" />
-                Historie objednávek
-              </Link>
+              {isAuthenticated ? (
+                <Link
+                  href="/order-history"
+                  onClick={() => setIsOpen(false)}
+                  className="text-lg font-medium transition-colors hover:text-primary flex items-center gap-2"
+                >
+                  <Clock3 className="h-5 w-5" />
+                  Historie objednávek
+                </Link>
+              ) : null}
               <Link
                 href="/kosik"
                 onClick={() => setIsOpen(false)}
