@@ -471,6 +471,10 @@ export default function CheckoutPage() {
             <div className="sticky top-24 p-6 rounded-xl border border-border bg-card">
               <h2 className="text-lg font-semibold mb-6">Vaše objednávka</h2>
 
+              <p className="text-sm text-red-600 text-center min-h-[1.25rem] mb-4">
+                {paymentError ?? ""}
+              </p>
+
               <div className="space-y-4 mb-6">
                 {items.map((item) => (
                   <div key={item.id} className="flex gap-3">
@@ -509,11 +513,22 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
+                disabled={isSubmitting}
+                onClick={() => {
+                  // Tohle zajistí, že uživatel uvidí debug text i když se handleSubmit z nějakého důvodu nespustí
+                  setIsLoading(false)
+                  setIsSubmitting(true)
+                  setPaymentError("Začínám zpracování objednávky…")
+                }}
+              >
                 {isSubmitting ? "Zpracovávám..." : "Dokončit objednávku"}
               </Button>
 
-              <p className="text-sm text-red-600 text-center mt-4 min-h-[1.25rem]">
+              <p className="text-sm text-red-600 text-center mt-3 min-h-[1.25rem]">
                 {paymentError ?? ""}
               </p>
 

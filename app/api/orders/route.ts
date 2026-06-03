@@ -106,68 +106,93 @@ function buildFallbackProduct(productId: string, productName: string): Product {
 }
 
 export async function POST(request: Request) {
-  const sessionId = getSessionIdFromRequest(request)
-  const userId = sessionId ?? null
+  try {
+    const sessionId = getSessionIdFromRequest(request)
+    const userId = sessionId ?? null
 
-  const body = (await request.json().catch(() => null)) as OrderCreateRequestBody | null
-  if (!body) {
-    return NextResponse.json({ error: "Neplatná JSON žádost." }, { status: 400 })
+    const body = (await request.json().catch(() => null)) as OrderCreateRequestBody | null
+    if (!body) {
+      return NextResponse.json({ success: false, error: "Neplatná JSON žádost." }, { status: 400 })
+    }
+
+    const { customer, items, totalPrice } = body
+    if (!customer || !Array.isArray(items) || typeof totalPrice !== "number") {
+      return NextResponse.json({ success: false, error: "Chybí data objednávky." }, { status: 400 })
+    }
+
+    const supabase = getSupabaseServer()
+
+    const editorStateForDb: OrderEditorStateForDb = groupDecorations(items)
+    const { street, streetNumber } = parseStreet(customer.street)
+
+    const { data, error } = await supabase
+      .from("app_orders")
+      .insert({
+        id: `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
+        user_id: userId,
+        created_at: new Date().toISOString(),
+        status: ORDER_STATUS_DEFAULT,
+
+        customer_first_name: customer.firstName,
+        customer_last_name: customer.lastName,
+        customer_email: customer.email,
+        customer_phone: customer.phone,
+
+        delivery_street: street,
+        delivery_street_number: streetNumber,
+        delivery_city: customer.city,
+        delivery_zip_code: customer.zipCode,
+        delivery_country: customer.country,
+
+        total_price: totalPrice,
+
+        editor_state: editorStateForDb,
+        items_snapshot: items.map((i) => ({
+          id: i.id,
+          productId: i.product.id,
+          productName: i.product.name,
+          size: i.size,
+          quantity: i.quantity,
+          customization: {
+            previewImage: i.customization?.previewImage ?? null,
+            view: i.customization?.view ?? null,
+            heartBetweenBreasts: i.customization?.heartBetweenBreasts ?? null,
+            padding: i.customization?.padding ?? null,
+          },
+        })),
+      })
+      .select("id")
+      .single()
+
+    if (error) {
+      console.error("CHYBA PŘI UKLÁDÁNÍ OBJEDNÁVKY (Supabase insert):", error)
+      return NextResponse.json(
+        { success: false, error: "Uložení objednávky selhalo.", details: error.message },
+        { status: 500 },
+      )
+    }
+
+    if (!data?.id) {
+      console.error("CHYBA PŘI UKLÁDÁNÍ OBJEDNÁVKY (Missing inserted id):", { data })
+      return NextResponse.json(
+        { success: false, error: "Uložení objednávky selhalo.", details: "Missing inserted id" },
+        { status: 500 },
+      )
+    }
+
+    return NextResponse.json({ success: true, ok: true, orderId: data.id })
+  } catch (error) {
+    console.error("CHYBA PŘI UKLÁDÁNÍ OBJEDNÁVKY:", error)
+    const message = error instanceof Error ? error.message : "Unknown error"
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Uložení objednávky selhalo.",
+        details: message,
+      },
+      { status: 500 },
+    )
   }
-
-  const { customer, items, totalPrice } = body
-  if (!customer || !Array.isArray(items) || typeof totalPrice !== "number") {
-    return NextResponse.json({ error: "Chybí data objednávky." }, { status: 400 })
-  }
-
-  const supabase = getSupabaseServer()
-
-  const editorStateForDb: OrderEditorStateForDb = groupDecorations(items)
-  const { street, streetNumber } = parseStreet(customer.street)
-
-  const { data, error } = await supabase
-    .from("app_orders")
-    .insert({
-      id: `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
-      user_id: userId,
-      created_at: new Date().toISOString(),
-      status: ORDER_STATUS_DEFAULT,
-
-      customer_first_name: customer.firstName,
-      customer_last_name: customer.lastName,
-      customer_email: customer.email,
-      customer_phone: customer.phone,
-
-      delivery_street: street,
-      delivery_street_number: streetNumber,
-      delivery_city: customer.city,
-      delivery_zip_code: customer.zipCode,
-      delivery_country: customer.country,
-
-      total_price: totalPrice,
-
-      editor_state: editorStateForDb,
-      items_snapshot: items.map((i) => ({
-        id: i.id,
-        productId: i.product.id,
-        productName: i.product.name,
-        size: i.size,
-        quantity: i.quantity,
-        customization: {
-          previewImage: i.customization?.previewImage ?? null,
-          view: i.customization?.view ?? null,
-          heartBetweenBreasts: i.customization?.heartBetweenBreasts ?? null,
-          padding: i.customization?.padding ?? null,
-        },
-      })),
-    })
-    .select("id")
-    .single()
-
-  if (error) {
-    return NextResponse.json({ error: "Uložení objednávky selhalo.", details: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json({ ok: true, orderId: data.id })
 }
 
 export async function GET(request: Request) {
