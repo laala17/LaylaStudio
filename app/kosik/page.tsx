@@ -6,11 +6,12 @@ import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
 import { formatPrice } from "@/lib/products"
 import { Button } from "@/components/ui/button"
+import { StaticSwimwearPreview, SurchargeList } from "@/components/static-swimwear-preview"
 
 export default function CartPage() {
   const { items, removeFromCart, updateQuantity, totalPrice } = useCart()
 
-  const shippingCost = totalPrice >= 1500 ? 0 : 99
+  const shippingCost = totalPrice >= 1500 ? 0 : 106
   const finalTotal = totalPrice + shippingCost
 
   if (items.length === 0) {
@@ -51,26 +52,23 @@ export default function CartPage() {
               key={item.id}
               className="flex gap-4 p-4 rounded-xl border border-border bg-card"
             >
-              <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                <Image
-                  src={item.customization?.previewImage ?? item.product.image}
-                  alt={item.product.name}
-                  fill
-                  className="object-cover"
-                />
-                {item.customization?.previewImage ? (
-                  <span className="absolute left-2 top-2 rounded-full bg-primary text-primary-foreground text-[10px] uppercase px-2 py-1">
-                    Upraveno
-                  </span>
-                ) : null}
+              {/* Preview image or static preview */}
+              <div className="flex-shrink-0">
+                {item.customization?.exportData ? (
+                  <StaticSwimwearPreview exportData={item.customization.exportData} size="sm" />
+                ) : (
+                  <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-muted">
+                    <Image
+                      src={item.product.image}
+                      alt={item.product.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex-1 min-w-0">
-                {item.customization?.view ? (
-                  <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground mb-2">
-                    Strana: {item.customization.view === "front" ? "Zepředu" : "Zezadu"}
-                  </p>
-                ) : null}
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <Link
@@ -82,19 +80,25 @@ export default function CartPage() {
                     <p className="text-sm text-muted-foreground mt-1">
                       Velikost: {item.size}
                     </p>
-                    <div className="mt-2 text-xs text-muted-foreground space-y-1">
-                      {item.customization?.view ? (
-                        <p>
-                          Strana: {item.customization.view === "front" ? "Zepředu" : "Zezadu"}
-                        </p>
-                      ) : null}
-                      {item.customization?.heartBetweenBreasts ? (
-                        <p>Srdíčko mezi prsa</p>
-                      ) : null}
-                      {item.customization?.padding ? (
-                        <p>Vycpávky</p>
-                      ) : null}
-                    </div>
+
+                    {/* Export data surcharge list */}
+                    {item.customization?.exportData && (
+                      <div className="mt-2">
+                        <SurchargeList exportData={item.customization.exportData} />
+                      </div>
+                    )}
+
+                    {/* Legacy customization flags */}
+                    {!item.customization?.exportData && (
+                      <div className="mt-2 text-xs text-muted-foreground space-y-1">
+                        {item.customization?.heartBetweenBreasts ? (
+                          <p>1× Srdíčko mezi prsa</p>
+                        ) : null}
+                        {item.customization?.padding ? (
+                          <p>Vycpávky</p>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={() => removeFromCart(item.id)}

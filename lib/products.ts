@@ -9,14 +9,16 @@ export interface Product {
   sizes: string[]
   colors: string[]
   inStock: boolean
+  material?: string
+  care?: string[]
 }
 
 export const products: Product[] = [
   {
     id: "1",
-    name: "Elegantní jednodílné plavky Coral",
+    name: "Bikini set BOBINY BLOSSOM",
     description:
-      "Luxusní jednodílné plavky v teplé korálové barvě. Vyrobeny z prémiového materiálu s UV ochranou.",
+      "Ručně šité bikiny s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
     price: 1890,
     image: "/images/IMG_3096.jpeg",
     images: [
@@ -26,14 +28,21 @@ export const products: Product[] = [
     ],
     category: "plavky",
     sizes: ["XS", "S", "M", "L", "XL"],
-    colors: ["Korálová"],
+    colors: ["Růžová"],
     inStock: true,
+    material: "Plavky jsou šité z kvalitní sportovní lycry, která se díky své pružnosti dokonale přizpůsobí postavě a poskytuje maximální pohodlí při nošení. Materiál je příjemný na dotek, rychleschnoucí a dlouhodobě si zachovává svůj tvar i vzhled.\n\nSložení: 86 % nylon, 14 % elastan\n\nKaždý kus je ručně šitý a vyráběný na zakázku. Ozdobné detaily se mohou u jednotlivých modelů lišit. Materiál má jemný perleťový lesk, který se může na fotografiích zobrazovat odlišně a nemusí být plně zachycen.",
+    care: [
+      "Ruční praní ve studené vodě",
+      "Nebělit",
+      "Nesušit v sušičce",
+      "Nežehlit",
+    ],
   },
   {
     id: "2",
-    name: "Bikini set Navy Blue",
+    name: "Bikini set BOBINY STONE",
     description:
-      "Stylový bikini set v hluboké námořnické modré. Horní díl s měkkou výztuží pro přirozený tvar.",
+      "Ručně šité bikiny s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
     price: 1590,
     image: "/images/IMG_3091.jpeg",
     images: [
@@ -43,14 +52,21 @@ export const products: Product[] = [
     ],
     category: "plavky",
     sizes: ["XS", "S", "M", "L"],
-    colors: ["Námořnická modrá"],
+    colors: ["Šedá"],
     inStock: true,
+    material: "Plavky jsou šité z kvalitní sportovní lycry, která se díky své pružnosti dokonale přizpůsobí postavě a poskytuje maximální pohodlí při nošení. Materiál je příjemný na dotek, rychleschnoucí a dlouhodobě si zachovává svůj tvar i vzhled.\n\nSložení: 86 % nylon, 14 % elastan\n\nKaždý kus je ručně šitý a vyráběný na zakázku. Ozdobné detaily se mohou u jednotlivých modelů lišit. Materiál má jemný perleťový lesk, který se může na fotografiích zobrazovat odlišně a nemusí být plně zachycen.",
+    care: [
+      "Ruční praní ve studené vodě",
+      "Nebělit",
+      "Nesušit v sušičce",
+      "Nežehlit",
+    ],
   },
   {
     id: "4",
-    name: "Jednodílné plavky Classic Black",
+    name: "Bikini set BOBINY MIDNIGHT",
     description:
-      "Nadčasové černé jednodílné plavky s jemnými detaily. Klasický elegantní design.",
+      "Ručně šité bikiny s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
     price: 2190,
     image: "/images/IMG_3104.jpeg",
     images: [
@@ -63,26 +79,40 @@ export const products: Product[] = [
     sizes: ["XS", "S", "M", "L", "XL"],
     colors: ["Černá"],
     inStock: true,
+    material: "Plavky jsou šité z kvalitní sportovní lycry, která se díky své pružnosti dokonale přizpůsobí postavě a poskytuje maximální pohodlí při nošení. Materiál je příjemný na dotek, rychleschnoucí a dlouhodobě si zachovává svůj tvar i vzhled.\n\nSložení: 86 % nylon, 14 % elastan\n\nKaždý kus je ručně šitý a vyráběný na zakázku. Ozdobné detaily se mohou u jednotlivých modelů lišit. Materiál má jemný perleťový lesk, který se může na fotografiích zobrazovat odlišně a nemusí být plně zachycen.",
+    care: [
+      "Ruční praní ve studené vodě",
+      "Nebělit",
+      "Nesušit v sušičce",
+      "Nežehlit",
+    ],
   },
   {
     id: "5",
-    name: "Bikini set Sand Beige",
+    name: "Bikini set BOBINY CLOUD",
     description:
-      "Trendy bikini v teplé písečné barvě. Minimalistický design pro moderní ženy.",
+      "Ručně šité bikiny s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
     price: 1490,
     image: "/images/IMG_3100.jpeg",
     images: [
       "/images/IMG_3100.jpeg",
       "/images/IMG_3101.jpeg",
       "/images/IMG_3102.jpeg",
-    ],
+   ],
     category: "plavky",
-    sizes: ["XS", "S", "M", "L"],
-    colors: ["Písková béžová"],
+    sizes: ["XS", "S", "M", "L", "XL"],
+    colors: ["Bílá"],
     inStock: true,
+    material: "Plavky jsou šité z kvalitní sportovní lycry, která se díky své pružnosti dokonale přizpůsobí postavě a poskytuje maximální pohodlí při nošení. Materiál je příjemný na dotek, rychleschnoucí a dlouhodobě si zachovává svůj tvar i vzhled.\n\nSložení: 86 % nylon, 14 % elastan\n\nKaždý kus je ručně šitý a vyráběný na zakázku. Ozdobné detaily se mohou u jednotlivých modelů lišit. Materiál má jemný perleťový lesk, který se může na fotografiích zobrazovat odlišně a nemusí být plně zachycen.",
+    care: [
+      "Ruční praní ve studené vodě",
+      "Nebělit",
+      "Nesušit v sušičce",
+      "Nežehlit",
+    
+    ],
   },
 ]
-
 export function getProductById(id: string): Product | undefined {
   return products.find((product) => product.id === id)
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import Image from "next/image"
 import { notFound } from "next/navigation"
 import { use } from "react"
@@ -9,7 +9,7 @@ import { getProductById, formatPrice } from "@/lib/products"
 import { useCart } from "@/lib/cart-context"
 import { Button } from "@/components/ui/button"
 import { DragEditor } from "@/components/drag-editor"
-import type { DragEditorState } from "@/lib/editor-state"
+import type { DragEditorState, EditorExportData } from "@/lib/editor-state"
 
 interface ProductPageProps {
   params: Promise<{ id: string }>
@@ -24,7 +24,6 @@ export default function ProductPage({ params }: ProductPageProps) {
   )
   const [selectedSize, setSelectedSize] = useState<string>("")
   const [quantity, setQuantity] = useState(1)
-  const [addHeart, setAddHeart] = useState(false)
   const [addPadding, setAddPadding] = useState(false)
   const [customizationPreview, setCustomizationPreview] = useState<{
     previewImage: string | null
@@ -32,10 +31,14 @@ export default function ProductPage({ params }: ProductPageProps) {
   } | null>(null)
   const [isAdded, setIsAdded] = useState(false)
   const [dragEditorState, setDragEditorState] = useState<DragEditorState | null>(null)
+  const [exportData, setExportData] = useState<EditorExportData | null>(null)
 
   if (!product) {
     notFound()
   }
+
+  const pricing = dragEditorState?.pricing
+  const totalCustomPrice = pricing ? pricing.totalPrice : product.price
 
   const handleAddToCart = () => {
     if (!selectedSize) return
@@ -45,7 +48,8 @@ export default function ProductPage({ params }: ProductPageProps) {
         ? { previewImage: customizationPreview.previewImage, view: customizationPreview.view }
         : {}),
       ...(dragEditorState ? { editorState: dragEditorState } : {}),
-      ...(addHeart ? { heartBetweenBreasts: true } : {}),
+      ...(exportData ? { exportData } : {}),
+      ...(dragEditorState?.pricing && dragEditorState.pricing.heartCount > 0 ? { heartBetweenBreasts: true } : {}),
       ...(addPadding ? { padding: true } : {}),
     }
 
@@ -155,21 +159,6 @@ export default function ProductPage({ params }: ProductPageProps) {
               <label className="flex items-center gap-3 rounded-2xl border border-border p-3 hover:border-primary transition-colors">
                 <input
                   type="checkbox"
-                  checked={addHeart}
-                  onChange={(event) => setAddHeart(event.target.checked)}
-                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                />
-                <div className="flex items-center gap-2">
-                  <img src="/images/12.png" alt="Srdíčko mezi prsa" width={36} height={36} className="rounded-lg" />
-                  <div>
-                    <p className="font-medium">Srdíčko mezi prsa</p>
-                  </div>
-                </div>
-              </label>
-
-              <label className="flex items-center gap-3 rounded-2xl border border-border p-3 hover:border-primary transition-colors">
-                <input
-                  type="checkbox"
                   checked={addPadding}
                   onChange={(event) => setAddPadding(event.target.checked)}
                   className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
@@ -224,15 +213,46 @@ export default function ProductPage({ params }: ProductPageProps) {
             )}
           </Button>
 
-          {/* Product Details */}
+          {/* Materiál a péče */}
+          {product.material && (
+            <div className="mt-8 pt-8 border-t border-border">
+              <h3 className="text-sm font-medium mb-3">Materiál</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                {product.material}
+              </p>
+            </div>
+          )}
+
+          {product.care && product.care.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-sm font-medium mb-3">Péče o plavky</h3>
+              <ul className="space-y-2">
+                {product.care.map((item, i) => (
+                  <li key={i} className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Odstoupení od smlouvy */}
+          <div className="mt-6 pt-6 border-t border-border">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Každý kus je vyráběn na základě individuální konfigurace zákazníka. Z tohoto důvodu se na produkty vytvořené podle zvolených parametrů nevztahuje právo na odstoupení od smlouvy ve lhůtě 14 dnů bez udání důvodu dle § 1837 občanského zákoníku.
+            </p>
+          </div>
         </div>
       </div>
 
       <DragEditor
         compact
         images={product.images ?? [product.image]}
+        basePrice={product.price}
         onPreviewChange={setCustomizationPreview}
         onEditorStateChange={setDragEditorState}
+        onExportDataChange={setExportData}
       />
     </div>
   )

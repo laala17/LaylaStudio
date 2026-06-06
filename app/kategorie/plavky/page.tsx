@@ -4,7 +4,7 @@ import { ProductCard } from "@/components/product-card"
 
 export const metadata: Metadata = {
   title: "Plavky | LayalaStudio",
-  description: "Prohlédněte si naši kolekci prémiových plavek. Jednodílné plavky a bikini v různých barvách a velikostech.",
+  description: "",
 }
 
 export default function CategoryPage() {
@@ -25,8 +25,8 @@ export default function CategoryPage() {
           Plavky
         </h1>
         <p className="text-muted-foreground max-w-2xl">
-          Objevte naši kolekci elegantních plavek. Od jednodílných po bikini, 
-          každý kousek je vyroben z prémiových materiálů pro maximální pohodlí a styl.
+          Každé bikiny začínají tvým nápadem. Nakonfiguruj si vlastní kombinaci a já ji proměním ve skutečnost. 💕
+
         </p>
       </div>
 

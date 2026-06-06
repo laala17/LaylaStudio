@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import type { Product } from "./products"
-import type { DragEditorState } from "./editor-state"
+import type { DragEditorState, EditorExportData } from "./editor-state"
 
 export interface CartItem {
   id: string
@@ -15,6 +15,7 @@ export interface CartItem {
     heartBetweenBreasts?: boolean
     padding?: boolean
     editorState?: DragEditorState
+    exportData?: EditorExportData
   }
 }
 

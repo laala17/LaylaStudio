@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react"
-import type { DragEditorState } from "@/lib/editor-state"
+import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from "react"
+import { computePricing, PRICING } from "@/lib/editor-state"
+import type { DragEditorState, EditorExportData } from "@/lib/editor-state"
 
 interface PaletteItem {
   id: string
@@ -10,14 +11,15 @@ interface PaletteItem {
   category: string
 }
 
+// Hodnoty left, top, width, height jsou nyní v PROCENTECH (0 - 100)
 interface CanvasItem {
   id: string
   src: string
   name: string
-  left: number
-  top: number
-  width: number
-  height: number
+  left: number // v %
+  top: number  // v %
+  width: number // v %
+  height: number // v %
   view: ViewMode
 }
 
@@ -27,78 +29,23 @@ type PointerState =
       itemId: string
       startX: number
       startY: number
-      originLeft: number
-      originTop: number
+      originLeft: number // v %
+      originTop: number  // v %
     }
   | null
 
 const paletteItems: PaletteItem[] = [
-  {
-    id: "velka-masle-1",
-    src: "/images/1.png",
-    name: "Velká mašle",
-    category: "Velké mašle",
-  },
-  {
-    id: "velka-masle-2",
-    src: "/images/2.png",
-    name: "Velká mašle",
-    category: "Velké mašle",
-  },
-  {
-    id: "velka-masle-4",
-    src: "/images/4.png",
-    name: "Velká mašle",
-    category: "Velké mašle",
-  },
-  {
-    id: "velka-masle-5",
-    src: "/images/5.png",
-    name: "Velká mašle",
-    category: "Velké mašle",
-  },
-  {
-    id: "velka-masle-6",
-    src: "/images/6.png",
-    name: "Velká mašle",
-    category: "Velké mašle",
-  },
-  {
-    id: "mala-masle-7",
-    src: "/images/7.png",
-    name: "Malá mašle",
-    category: "Malé mašle",
-  },
-  {
-    id: "mala-masle-8",
-    src: "/images/8.png",
-    name: "Malá mašle",
-    category: "Malé mašle",
-  },
-  {
-    id: "mala-masle-9",
-    src: "/images/9.png",
-    name: "Malá mašle",
-    category: "Malé mašle",
-  },
-  {
-    id: "mala-masle-15",
-    src: "/images/15.png",
-    name: "Malá mašle",
-    category: "Malé mašle",
-  },
-  {
-    id: "koralky-10",
-    src: "/images/10.png",
-    name: "Korálky",
-    category: "Korálky",
-  },
-  {
-    id: "koralky-11",
-    src: "/images/11.png",
-    name: "Korálky",
-    category: "Korálky",
-  },
+  { id: "velka-masle-1", src: "/images/1.png", name: "Velká mašle", category: "Velké mašle" },
+  { id: "velka-masle-2", src: "/images/2.png", name: "Velká mašle", category: "Velké mašle" },
+  { id: "velka-masle-4", src: "/images/4.png", name: "Velká mašle", category: "Velké mašle" },
+  { id: "velka-masle-5", src: "/images/5.png", name: "Velká mašle", category: "Velké mašle" },
+  { id: "velka-masle-6", src: "/images/6.png", name: "Velká mašle", category: "Velké mašle" },
+  { id: "mala-masle-7", src: "/images/7.png", name: "Malá mašle", category: "Malé mašle" },
+  { id: "mala-masle-8", src: "/images/8.png", name: "Malá mašle", category: "Malé mašle" },
+  { id: "mala-masle-9", src: "/images/9.png", name: "Malá mašle", category: "Malé mašle" },
+  { id: "mala-masle-15", src: "/images/15.png", name: "Malá mašle", category: "Malé mašle" },
+  { id: "koralky-10", src: "/images/10.png", name: "Korálky", category: "Korálky" },
+  { id: "koralky-11", src: "/images/11.png", name: "Korálky", category: "Korálky" },
 ]
 
 type ViewMode = "front" | "back"
@@ -111,13 +58,30 @@ type DragEditorPreview = {
 interface DragEditorProps {
   compact?: boolean
   images?: string[]
+  basePrice?: number
+  initialItems?: CanvasItem[] // Pro načtení v adminu
+  initialHeartCount?: number   // Pro načtení v adminu
+  readOnly?: boolean          // Vypne editační prvky pro admin zobrazení
   onPreviewChange?: (preview: DragEditorPreview) => void
   onEditorStateChange?: (state: DragEditorState) => void
+  onExportDataChange?: (data: EditorExportData) => void
 }
 
-export function DragEditor({ compact = false, images = [], onPreviewChange, onEditorStateChange }: DragEditorProps) {
+const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val))
+
+export function DragEditor({
+  compact = false,
+  images = [],
+  basePrice,
+  initialItems = [],
+  initialHeartCount = 0,
+  readOnly = false,
+  onPreviewChange,
+  onEditorStateChange,
+  onExportDataChange,
+}: DragEditorProps) {
   const canvasAreaRef = useRef<HTMLDivElement | null>(null)
-  const [items, setItems] = useState<CanvasItem[]>([])
+  const [items, setItems] = useState<CanvasItem[]>(initialItems)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedPaletteId, setSelectedPaletteId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -125,10 +89,14 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
   const [selectedCategory, setSelectedCategory] = useState<string>("Velké mašle")
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
+  const [heartCount, setHeartCount] = useState(initialHeartCount)
   const pointerState = useRef<PointerState>(null)
-  const nextId = useRef(1)
+  const nextId = useRef(initialItems.length + 1)
 
-  const getDecorationSize = (category?: string) => {
+  const pricing = useMemo(() => computePricing(items, heartCount, basePrice), [items, heartCount, basePrice])
+
+  // Pomocná funkce pro získání velikosti v PX na základě responzivity, kterou následně přepočítáme na %
+  const getDecorationSizePx = (category?: string) => {
     if (!isMobile) return 96
     if (typeof window === "undefined") return 64
 
@@ -147,23 +115,22 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
   const filteredItems = paletteItems.filter((item) => item.category === selectedCategory)
 
   useEffect(() => {
+    if (initialItems.length > 0) setItems(initialItems)
+  }, [initialItems])
+
+  useEffect(() => {
     const updateIsMobile = () => {
       setIsMobile(window.matchMedia("(max-width: 767px)").matches)
     }
-
     updateIsMobile()
     const mql = window.matchMedia("(max-width: 767px)")
     const listener = (event: MediaQueryListEvent) => setIsMobile(event.matches)
     mql.addEventListener?.("change", listener)
-    mql.addListener?.(listener)
-
-    return () => {
-      mql.removeEventListener?.("change", listener)
-      mql.removeListener?.(listener)
-    }
+    return () => mql.removeEventListener?.("change", listener)
   }, [])
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (readOnly) return
     event.preventDefault()
     event.dataTransfer.dropEffect = "copy"
     setDragOver(true)
@@ -175,6 +142,7 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
   }
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (readOnly) return
     event.preventDefault()
     setDragOver(false)
 
@@ -186,10 +154,18 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
     if (!canvasArea) return
 
     const rect = canvasArea.getBoundingClientRect()
-    const size = getDecorationSize(parsed.category)
-    const half = size / 2
-    const x = event.clientX - rect.left - half
-    const y = event.clientY - rect.top - half
+    const sizePx = getDecorationSizePx(parsed.category)
+    
+    // Výpočet pozice v pixelech vůči plátnu
+    const xPx = event.clientX - rect.left - sizePx / 2
+    const yPx = event.clientY - rect.top - sizePx / 2
+
+    // Přepočet pixelů na procenta (0 - 100)
+    const leftPercent = (xPx / rect.width) * 100
+    const topPercent = (yPx / rect.height) * 100
+    const widthPercent = (sizePx / rect.width) * 100
+    const heightPercent = (sizePx / rect.height) * 100
+
     const id = `item-${nextId.current++}`
 
     setItems((prev) => [
@@ -198,10 +174,10 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
         id,
         src: parsed.src,
         name: parsed.name,
-        left: clamp(x, 0, rect.width - size),
-        top: clamp(y, 0, rect.height - size),
-        width: size,
-        height: size,
+        left: clamp(leftPercent, 0, 100 - widthPercent),
+        top: clamp(topPercent, 0, 100 - heightPercent),
+        width: widthPercent,
+        height: heightPercent,
         view: selectedView,
       },
     ])
@@ -210,26 +186,34 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
 
   const handlePointerMove = (event: globalThis.PointerEvent) => {
     const state = pointerState.current
-    if (!state) return
+    if (!state || readOnly) return
     const canvasArea = canvasAreaRef.current
     if (!canvasArea) return
 
     if (state.type === "drag") {
-      const dx = event.clientX - state.startX
-      const dy = event.clientY - state.startY
+      const activeItem = items.find((i) => i.id === state.itemId)
+      if (!activeItem) return
+
+      // Rozdíl pohybu kurzoru v PX
+      const dxPx = event.clientX - state.startX
+      const dyPx = event.clientY - state.startY
+
+      // Přepočet posunu z PX na %
+      const dxPercent = (dxPx / canvasArea.clientWidth) * 100
+      const dyPercent = (dyPx / canvasArea.clientHeight) * 100
+
       setItems((prev) =>
         prev.map((item) =>
           item.id === state.itemId
             ? {
                 ...item,
-                left: clamp(state.originLeft + dx, 0, canvasArea.clientWidth - item.width),
-                top: clamp(state.originTop + dy, 0, canvasArea.clientHeight - item.height),
+                left: clamp(state.originLeft + dxPercent, 0, 100 - item.width),
+                top: clamp(state.originTop + dyPercent, 0, 100 - item.height),
               }
             : item,
         ),
       )
     }
-
   }
 
   const handlePointerUp = (event: globalThis.PointerEvent) => {
@@ -249,15 +233,22 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
     window.addEventListener("pointerup", handlePointerUp)
   }
 
-  const addItemToCanvas = (item: PaletteItem, x?: number, y?: number) => {
+  const addItemToCanvas = (item: PaletteItem, xPx?: number, yPx?: number) => {
+    if (readOnly) return
     const canvasArea = canvasAreaRef.current
     if (!canvasArea) return
 
     const rect = canvasArea.getBoundingClientRect()
-    const size = getDecorationSize(item.category)
-    const half = size / 2
-    const left = x !== undefined ? x : rect.width / 2 - half
-    const top = y !== undefined ? y : rect.height / 2 - half
+    const sizePx = getDecorationSizePx(item.category)
+    
+    const finalXPx = xPx !== undefined ? xPx : rect.width / 2 - sizePx / 2
+    const finalYPx = yPx !== undefined ? yPx : rect.height / 2 - sizePx / 2
+
+    const leftPercent = (finalXPx / rect.width) * 100
+    const topPercent = (finalYPx / rect.height) * 100
+    const widthPercent = (sizePx / rect.width) * 100
+    const heightPercent = (sizePx / rect.height) * 100
+
     const id = `item-${nextId.current++}`
 
     setItems((prev) => [
@@ -266,10 +257,10 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
         id,
         src: item.src,
         name: item.name,
-        left: clamp(left, 0, rect.width - size),
-        top: clamp(top, 0, rect.height - size),
-        width: size,
-        height: size,
+        left: clamp(leftPercent, 0, 100 - widthPercent),
+        top: clamp(topPercent, 0, 100 - heightPercent),
+        width: widthPercent,
+        height: heightPercent,
         view: selectedView,
       },
     ])
@@ -277,30 +268,31 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
   }
 
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, item: PaletteItem) => {
+    if (readOnly) return
     event.dataTransfer.setData("text/plain", JSON.stringify(item))
     event.dataTransfer.effectAllowed = "copy"
   }
 
   const handlePaletteItemClick = (item: PaletteItem) => {
+    if (readOnly) return
     if (isMobile) {
       setSelectedPaletteId(item.id)
       return
     }
-
     addItemToCanvas(item)
   }
 
   const handleCanvasClick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (readOnly) return
     if (selectedPaletteId) {
       const paletteItem = paletteItems.find((item) => item.id === selectedPaletteId)
       const canvasArea = canvasAreaRef.current
       if (paletteItem && canvasArea) {
         const rect = canvasArea.getBoundingClientRect()
-        const size = getDecorationSize(paletteItem.category)
-        const half = size / 2
-        const x = event.clientX - rect.left - half
-        const y = event.clientY - rect.top - half
-        addItemToCanvas(paletteItem, x, y)
+        const sizePx = getDecorationSizePx(paletteItem.category)
+        const xPx = event.clientX - rect.left - sizePx / 2
+        const yPx = event.clientY - rect.top - sizePx / 2
+        addItemToCanvas(paletteItem, xPx, yPx)
       }
       setSelectedPaletteId(null)
       return
@@ -312,6 +304,7 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
   }
 
   const handleItemPointerDown = (event: ReactPointerEvent<HTMLDivElement>, itemId: string) => {
+    if (readOnly) return
     if ((event.target as HTMLElement).closest(".controls")) return
     if (event.button !== 0) return
 
@@ -325,21 +318,21 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
       itemId,
       startX: event.clientX,
       startY: event.clientY,
-      originLeft: item.left,
-      originTop: item.top,
+      originLeft: item.left, // již uloženo v %
+      originTop: item.top,   // již uloženo v %
     }
 
     ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
     attachPointerListeners()
   }
 
-  
-
   const handleDelete = (itemId: string) => {
+    if (readOnly) return
     setItems((prev) => prev.filter((item) => item.id !== itemId))
     setSelectedId((prev) => (prev === itemId ? null : prev))
   }
 
+  // Generování náhledu z procent na fixní plátno pro uložení obrázku na backend
   const generatePreviewImage = async () => {
     if (typeof window === "undefined") return
 
@@ -359,7 +352,6 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
       })
 
     const backgroundSrc = images[selectedView === "front" ? 0 : 1] ?? images[0] ?? ""
-
     const viewItems = items.filter((item) => item.view === selectedView)
 
     try {
@@ -373,9 +365,15 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
     for (const item of viewItems) {
       try {
         const image = await loadImage(item.src)
-        ctx.drawImage(image, item.left, item.top, item.width, item.height)
+        // Přepočet z % zpět na fixní pixely plátna canvasu (560x746) pro stabilní tisk/uložení
+        const itemLeft = (item.left / 100) * canvas.width
+        const itemTop = (item.top / 100) * canvas.height
+        const itemWidth = (item.width / 100) * canvas.width
+        const itemHeight = (item.height / 100) * canvas.height
+        
+        ctx.drawImage(image, itemLeft, itemTop, itemWidth, itemHeight)
       } catch {
-        // ignore failed decoration images
+        // ignorovat chybu obrázku dekorace
       }
     }
 
@@ -393,103 +391,164 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
       onPreviewChange?.({ previewImage: null, view: selectedView })
       return
     }
-
     generatePreviewImage()
   }, [items, selectedView])
 
   useEffect(() => {
+    if (readOnly) return
     const frontSrc = images[0] ?? ""
     const backSrc = images[1] ?? images[0] ?? ""
 
     const state: DragEditorState = {
       selectedView,
-      background: {
-        frontSrc,
-        backSrc,
-      },
-      items: items.map((item) => ({
-        id: item.id,
-        src: item.src,
-        name: item.name,
-        left: item.left,
-        top: item.top,
-        width: item.width,
-        height: item.height,
-        view: item.view,
-      })),
+      background: { frontSrc, backSrc },
+      items,
+      pricing,
     }
-
     onEditorStateChange?.(state)
-  }, [items, selectedView, images, onEditorStateChange])
+  }, [items, selectedView, images, onEditorStateChange, pricing, readOnly])
+
+  useEffect(() => {
+    if (readOnly || !onExportDataChange) return
+    const frontSrc = images[0] ?? ""
+    const backSrc = images[1] ?? images[0] ?? ""
+
+    const exportData: EditorExportData = {
+      frontBackground: frontSrc,
+      backBackground: backSrc,
+      frontItems: items
+        .filter((i) => i.view === "front")
+        .map((i) => ({
+          id: i.id,
+          src: i.src,
+          name: i.name,
+          leftPercent: i.left,
+          topPercent: i.top,
+          widthPercent: i.width,
+          heightPercent: i.height,
+          view: i.view,
+        })),
+      backItems: items
+        .filter((i) => i.view === "back")
+        .map((i) => ({
+          id: i.id,
+          src: i.src,
+          name: i.name,
+          leftPercent: i.left,
+          topPercent: i.top,
+          widthPercent: i.width,
+          heightPercent: i.height,
+          view: i.view,
+        })),
+      heartCount,
+      pricing,
+    }
+    onExportDataChange(exportData)
+  }, [items, heartCount, images, pricing, onExportDataChange, readOnly])
 
   return (
-    <div className={`drag-editor${compact ? " compact" : ""}`}>
-      <div className="editor-header">
-        <div>
-          <h2>Personalizace plavek</h2>
-          <p className="editor-subtitle">Na mobilu klepněte na dekoraci pro přidání, na položku v plátně pak přetahujte.</p>
+    <div className={`drag-editor${compact ? " compact" : ""}${readOnly ? " readonly-mode" : ""}`}>
+      {!readOnly && (
+        <div className="editor-header">
+          <div>
+            <h2>Personalizace plavek</h2>
+            <p className="editor-subtitle">Na mobilu klepněte na dekoraci pro přidání, na položku v plátně pak přetahujte.</p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="editor-layout">
-        <aside className="panel">
-          <div className="panel-header">
-            <div>
+        {!readOnly && (
+          <aside className="panel">
+            <div className="panel-header">
               <h3>Kategorie dekorací</h3>
             </div>
-          </div>
-          <div className="category-tabs">
-            {categories.map((category) => (
-              <button
-                key={category}
-                type="button"
-                className={selectedCategory === category ? "category-tab active" : "category-tab"}
-                onClick={() => setSelectedCategory(category)}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-          <div className="items-list">
-            {filteredItems.map((item) => (
-              <div
-                key={item.id}
-                className={`item-card ${selectedPaletteId === item.id ? "selected" : ""}`}
-                role="button"
-                tabIndex={0}
-                draggable={!isMobile}
-                onClick={() => handlePaletteItemClick(item)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault()
-                    handlePaletteItemClick(item)
-                  }
-                }}
-                onDragStart={(event) => handleDragStart(event, item)}
-              >
-                <img src={item.src} alt={item.name} />
-                <div>
-                  <strong>{item.name}</strong>
+            <div className="category-tabs">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  className={selectedCategory === category ? "category-tab active" : "category-tab"}
+                  onClick={() => setSelectedCategory(category)}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+            <div className="items-list">
+              {filteredItems.map((item) => (
+                <div
+                  key={item.id}
+                  className={`item-card ${selectedPaletteId === item.id ? "selected" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  draggable={!isMobile}
+                  onClick={() => handlePaletteItemClick(item)}
+                  onDragStart={(event) => handleDragStart(event, item)}
+                >
+                  <img src={item.src} alt={item.name} />
+                  <div>
+                    <strong>{item.name}</strong>
+                    {PRICING.SURCHARGES[item.name] !== undefined && (
+                      <span className="item-price">(+{PRICING.SURCHARGES[item.name]} Kč)</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Heart section */}
+            <div className="heart-section">
+              <div className="heart-header">
+                <div className="heart-info">
+                  <img src="/images/12.png" alt="Srdíčko" className="heart-icon" />
+                  <div>
+                    <strong>Srdíčko mezi prsa</strong>
+                    <span className="heart-price">(+{PRICING.HEART} Kč)</span>
+                  </div>
+                </div>
+                <div className="heart-controls">
+                  <button
+                    type="button"
+                    className="heart-btn"
+                    onClick={() => setHeartCount(Math.max(0, heartCount - 1))}
+                    disabled={heartCount === 0}
+                  >
+                    –
+                  </button>
+                  <span className="heart-counter">{heartCount}</span>
+                  <button
+                    type="button"
+                    className="heart-btn"
+                    onClick={() => setHeartCount(heartCount + 1)}
+                    disabled={heartCount >= 1}
+                  >
+                    +
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-          <div className="mobile-hint">
-            {isMobile ? (
-              selectedPaletteId ? (
-                <p>Klepněte do plátna v místě, kde chcete dekoraci umístit.</p>
-              ) : (
-                <p>Klepněte na dekoraci pro výběr, pak klepněte na plátno.</p>
-              )
-            ) : (
-              <p>Klikněte a přetáhněte dekoraci do plátna, nebo klepněte pro rychlé vložení.</p>
-            )}
-          </div>
-        </aside>
+            </div>
+
+            {/* Price widget */}
+            <div className="price-widget">
+              <h4>Cenová kalkulace</h4>
+              <div className="price-line">
+                <span>Základní cena</span>
+                <span>{pricing.basePrice} Kč</span>
+              </div>
+              <div className="price-divider" />
+              <div className="price-line total">
+                <span>Celková cena</span>
+                <span>{pricing.totalPrice} Kč</span>
+              </div>
+            </div>
+          </aside>
+        )}
 
         <section className="canvas-panel">
           <div className="panel-header">
             <span className="status-pill">{items.length} dekorací</span>
+            {readOnly && <span className="admin-pill">Zobrazení pro výrobu</span>}
           </div>
 
           <div className="canvas-body">
@@ -533,38 +592,49 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
                     <div
                       id={item.id}
                       key={item.id}
-                      className={`canvas-item ${selectedId === item.id ? "selected" : ""}`}
+                      className={`canvas-item ${selectedId === item.id && !readOnly ? "selected" : ""}`}
                       style={{
-                        left: item.left,
-                        top: item.top,
-                        width: item.width,
-                        height: item.height,
+                        left: `${item.left}%`,
+                        top: `${item.top}%`,
+                        width: `${item.width}%`,
+                        height: `${item.height}%`,
                       }}
                       onPointerDown={(event) => handleItemPointerDown(event, item.id)}
-                      onClick={() => setSelectedId(item.id)}
+                      onClick={() => !readOnly && setSelectedId(item.id)}
                     >
-                      <div className="controls">
-                        <button
-                          type="button"
-                          className="delete-btn"
-                          title="Smazat"
-                          onClick={() => handleDelete(item.id)}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      <img src={item.src} alt={item.name} />
+                      {!readOnly && (
+                        <div className="controls">
+                          <button
+                            type="button"
+                            className="delete-btn"
+                            title="Smazat"
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
+                      <img src={item.src} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-
           </div>
         </section>
       </div>
 
       <style jsx global>{`
+        .drag-editor.readonly-mode .editor-layout {
+          grid-template-columns: 1fr;
+        }
+        .admin-pill {
+          background: #f59e0b;
+          color: white;
+          padding: 0.55rem 0.9rem;
+          border-radius: 999px;
+          font-size: 0.95rem;
+        }
         .drag-editor {
           margin-top: 3rem;
           padding: 1.5rem;
@@ -573,7 +643,6 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
           border-radius: 32px;
           box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
         }
-
         .editor-header {
           display: flex;
           justify-content: space-between;
@@ -582,33 +651,21 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
           margin-bottom: 1.75rem;
           flex-wrap: wrap;
         }
-
         .editor-header h2 {
           margin: 0;
           font-size: clamp(1.5rem, 2vw, 2rem);
         }
-
         .editor-subtitle {
           margin: 0.5rem 0 0;
           color: #475569;
           max-width: 40rem;
           line-height: 1.65;
         }
-
-        .editor-helper {
-          background: rgba(14, 165, 233, 0.12);
-          color: #0369a1;
-          padding: 0.85rem 1rem;
-          border-radius: 16px;
-          font-size: 0.95rem;
-        }
-
         .editor-layout {
           display: grid;
           grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
           gap: 1.5rem;
         }
-
         .panel,
         .canvas-panel {
           background: #ffffff;
@@ -617,7 +674,6 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
           overflow: hidden;
           box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06);
         }
-
         .panel-header,
         .canvas-panel .panel-header {
           display: flex;
@@ -627,20 +683,6 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
           padding: 1.35rem 1.5rem;
           border-bottom: 1px solid #e2e8f0;
         }
-
-        .panel-header h3,
-        .canvas-panel h3 {
-          margin: 0;
-          font-size: 1.05rem;
-        }
-
-        .panel-header p,
-        .canvas-panel p {
-          margin: 0.35rem 0 0;
-          color: #64748b;
-          line-height: 1.5;
-        }
-
         .status-pill {
           background: rgba(14, 165, 233, 0.12);
           color: #0369a1;
@@ -649,14 +691,12 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
           font-size: 0.95rem;
           white-space: nowrap;
         }
-
         .category-tabs {
           display: flex;
           gap: 0.75rem;
           flex-wrap: wrap;
           padding: 1.5rem 1.5rem 0;
         }
-
         .category-tab {
           padding: 0.75rem 1rem;
           border-radius: 999px;
@@ -665,21 +705,17 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
           color: #0f172a;
           font-size: 0.95rem;
           cursor: pointer;
-          transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
         }
-
         .category-tab.active {
           background: #0ea5e9;
           border-color: #0ea5e9;
           color: #ffffff;
         }
-
         .items-list {
           display: grid;
           gap: 1rem;
-          padding: 1rem 1.5rem 1.5rem;
+          padding: 1rem 1.5rem 0.5rem;
         }
-
         .item-card {
           display: flex;
           align-items: center;
@@ -689,54 +725,77 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
           background: #f8fbff;
           padding: 0.95rem 1rem;
           cursor: grab;
-          transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
-          touch-action: manipulation;
-          user-select: none;
         }
-
-        .item-card.selected {
-          border-color: #0ea5e9;
-          background: #e0f2fe;
-        }
-
-        .item-card:hover,
-        .item-card:focus-visible {
-          transform: translateY(-1px);
-          border-color: #38bdf8;
-          background: #eff8ff;
-          outline: none;
-        }
-
         .item-card img {
           width: 56px;
           height: 56px;
           border-radius: 18px;
           object-fit: cover;
-          box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
         }
-
-        .item-card strong {
-          display: block;
-          color: #0f172a;
-          font-size: 0.97rem;
-          text-align: left;
+        .heart-section {
+          padding: 0.75rem 1.5rem;
+          border-top: 1px solid #e2e8f0;
         }
-
+        .heart-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 0.75rem;
+        }
+        .heart-info {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+        .heart-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          object-fit: cover;
+        }
+        .heart-controls {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .heart-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 10px;
+          border: 1px solid #cbd5e1;
+          background: #ffffff;
+          cursor: pointer;
+        }
+        .heart-counter {
+          min-width: 24px;
+          text-align: center;
+          font-weight: 600;
+        }
+        .price-widget {
+          padding: 1rem 1.5rem;
+          border-top: 1px solid #e2e8f0;
+          background: #f8fafc;
+        }
+        .price-line {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.9rem;
+          padding: 0.25rem 0;
+        }
+        .price-divider {
+          height: 1px;
+          background: #cbd5e1;
+          margin: 0.5rem 0;
+        }
+        .price-line.total {
+          font-weight: 600;
+          font-size: 1rem;
+        }
         .canvas-body {
           padding: 1.5rem;
           min-height: 640px;
         }
-
-        .mobile-hint {
-          padding: 0 1.5rem 1rem;
-          color: #475569;
-          font-size: 0.95rem;
-        }
-
-        .mobile-hint p {
-          margin: 0;
-        }
-
         .drop-zone {
           position: relative;
           width: 100%;
@@ -747,14 +806,7 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
           display: grid;
           place-items: center;
           overflow: hidden;
-          transition: border-color 200ms ease, background 200ms ease;
         }
-
-        .drop-zone.dragover {
-          border-color: #0ea5e9;
-          background: rgba(14, 165, 233, 0.08);
-        }
-
         .canvas-inner {
           position: relative;
           width: min(100%, 560px);
@@ -762,596 +814,62 @@ export function DragEditor({ compact = false, images = [], onPreviewChange, onEd
           border-radius: 28px;
           overflow: hidden;
           background: #f1f5f9 no-repeat center/contain;
-          box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.14);
-          transition: background 300ms ease, box-shadow 300ms ease;
         }
-
-        .canvas-item {
-          position: absolute;
-          border-radius: 22px;
-          cursor: grab;
-          touch-action: none;
-          user-select: none;
-          transform-origin: center;
-          transition: transform 180ms ease;
-        }
-
         .canvas-area {
           position: absolute;
           inset: 0;
           overflow: hidden;
         }
-
         .canvas-item {
           position: absolute;
           border-radius: 22px;
           cursor: grab;
           touch-action: none;
-          transform-origin: center;
-          transition: transform 180ms ease;
         }
-
         .canvas-item.selected {
           outline: 2px solid rgba(14, 165, 233, 0.95);
           outline-offset: 8px;
         }
-
         .controls {
           position: absolute;
           top: 4px;
           left: 4px;
-          display: flex;
-          gap: 0.55rem;
           opacity: 0;
           visibility: hidden;
-          transition: opacity 180ms ease, visibility 180ms ease;
           z-index: 2;
         }
-
         .canvas-item.selected .controls {
           opacity: 1;
           visibility: visible;
         }
-
         .view-switcher {
           display: flex;
           justify-content: center;
           gap: 0.75rem;
           margin-bottom: 1rem;
         }
-
         .view-switcher button {
           border: 1px solid #cbd5e1;
-          color: #0f172a;
           background: #ffffff;
           border-radius: 999px;
           padding: 0.75rem 1.15rem;
           cursor: pointer;
-          transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
         }
-
         .view-switcher button.active {
           background: #0ea5e9;
           border-color: #0ea5e9;
           color: #ffffff;
         }
-
-        .view-switcher button:disabled {
-          opacity: 0.45;
-          cursor: not-allowed;
-        }
-
         .controls button {
           width: 32px;
           height: 32px;
           border-radius: 12px;
           border: none;
           background: rgba(255, 255, 255, 0.98);
-          color: #0f172a;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 0.95rem;
           box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
           cursor: pointer;
-        }
-
-        
-
-        .info-bar {
-          margin-top: 1.35rem;
-          padding: 1rem 1.15rem;
-          border-top: 1px solid #e2e8f0;
-          display: flex;
-          justify-content: space-between;
-          gap: 1rem;
-          flex-wrap: wrap;
-          color: #475569;
-          font-size: 0.95rem;
-        }
-
-        .drag-editor.compact {
-          margin-top: 2rem;
-          padding: 1rem;
-          border-radius: 26px;
-        }
-
-        .drag-editor.compact .editor-header {
-          gap: 0.75rem;
-        }
-
-        .drag-editor.compact .editor-header h2 {
-          font-size: clamp(1.25rem, 2vw, 1.6rem);
-        }
-
-        .drag-editor.compact .editor-helper {
-          font-size: 0.9rem;
-          padding: 0.75rem 0.95rem;
-        }
-
-        .drag-editor.compact .editor-layout {
-          grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
-          gap: 1rem;
-        }
-
-        .drag-editor.compact .panel-header,
-        .drag-editor.compact .canvas-panel .panel-header {
-          padding: 1rem 1.1rem;
-        }
-
-        .drag-editor.compact .items-list {
-          gap: 0.85rem;
-          padding: 1rem;
-        }
-
-        .drag-editor.compact .item-card {
-          padding: 0.85rem 0.9rem;
-        }
-
-        .drag-editor.compact .item-card img {
-          width: 48px;
-          height: 48px;
-        }
-
-        .drag-editor.compact .canvas-body {
-          padding: 1rem;
-          min-height: 460px;
-        }
-
-        .drag-editor.compact .drop-zone {
-          min-height: 420px;
-        }
-
-        .drag-editor.compact .canvas-inner {
-          width: min(100%, 460px);
-        }
-
-        .drag-editor.compact .status-pill {
-          padding: 0.45rem 0.75rem;
-          font-size: 0.9rem;
-        }
-
-        .drag-editor.compact .controls {
-          top: 10px;
-          left: 10px;
-        }
-
-        .drag-editor.compact .controls button {
-          width: 28px;
-          height: 28px;
-          font-size: 0.9rem;
-        }
-
-        
-
-        @media (max-width: 1024px) {
-          .editor-layout {
-            grid-template-columns: 1fr;
-          }
-
-          .canvas-body {
-            padding: 1.25rem;
-          }
-        }
-
-        @media (max-width: 820px) {
-          .canvas-inner {
-            width: 100%;
-            max-width: 100%;
-          }
-
-          .drop-zone {
-            min-height: 460px;
-          }
-        }
-
-        @media (max-width: 768px) {
-          .drag-editor {
-            padding: 1rem;
-            border-radius: 22px;
-            margin-top: 1.5rem;
-          }
-
-          .editor-header {
-            margin-bottom: 1.25rem;
-          }
-
-          .editor-header h2 {
-            font-size: 1.5rem;
-          }
-
-          .editor-subtitle {
-            font-size: 0.9rem;
-            line-height: 1.5;
-          }
-
-          .drag-editor.compact .editor-layout {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-          }
-
-          .drag-editor.compact .canvas-panel {
-            order: 1;
-          }
-
-          .drag-editor.compact .panel {
-            order: 2;
-            min-height: auto;
-            max-height: none;
-            overflow: visible;
-          }
-
-          .editor-layout {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-          }
-
-          .panel {
-            min-height: auto;
-            max-height: 420px;
-            overflow-y: auto;
-          }
-
-          .panel-header h3 {
-            font-size: 1rem;
-          }
-
-          .category-tabs {
-            padding: 1rem 1rem 0;
-            gap: 0.5rem;
-            justify-content: flex-start;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-          }
-
-          .category-tab {
-            padding: 0.6rem 0.85rem;
-            font-size: 0.9rem;
-            white-space: nowrap;
-            flex-shrink: 0;
-          }
-
-          .items-list {
-            gap: 0.75rem;
-            padding: 0.75rem 1rem 1rem;
-            grid-template-columns: 1fr;
-          }
-
-          .item-card {
-            padding: 0.75rem 0.85rem;
-            gap: 0.75rem;
-          }
-
-          .item-card img {
-            width: 48px;
-            height: 48px;
-            flex-shrink: 0;
-          }
-
-          .item-card strong {
-            font-size: 0.9rem;
-          }
-
-          .mobile-hint {
-            padding: 0 1rem 0.75rem;
-            font-size: 0.85rem;
-          }
-
-          .canvas-body {
-            padding: 1rem;
-            min-height: auto;
-          }
-
-          .drag-editor.compact .canvas-body {
-            min-height: auto;
-          }
-
-          .view-switcher {
-            margin-bottom: 0.75rem;
-            gap: 0.5rem;
-          }
-
-          .view-switcher button {
-            padding: 0.6rem 1rem;
-            font-size: 0.9rem;
-          }
-
-          .drop-zone {
-            min-height: 380px;
-            border-radius: 20px;
-            padding: 1rem;
-          }
-
-          .drag-editor.compact .drop-zone {
-            min-height: min(62vh, 560px);
-          }
-
-          .canvas-inner {
-            width: 100%;
-            max-width: 100%;
-            aspect-ratio: 3 / 4;
-            border-radius: 20px;
-          }
-
-          .canvas-item {
-            border-radius: 16px;
-          }
-
-          .controls {
-            top: 4px;
-            left: 4px;
-            gap: 0.4rem;
-          }
-
-          .controls button {
-            width: 28px;
-            height: 28px;
-            font-size: 0.85rem;
-            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.15);
-          }
-
-          .status-pill {
-            font-size: 0.9rem;
-            padding: 0.5rem 0.8rem;
-          }
-
-          .info-bar {
-            margin-top: 0.75rem;
-            padding: 0.75rem 0.85rem;
-            font-size: 0.85rem;
-            gap: 0.5rem;
-          }
-        }
-
-        @media (max-width: 600px) {
-          .drag-editor {
-            padding: 0.75rem;
-          }
-
-          .editor-header {
-            margin-bottom: 1rem;
-            gap: 0.5rem;
-          }
-
-          .editor-header h2 {
-            font-size: 1.25rem;
-          }
-
-          .editor-subtitle {
-            font-size: 0.85rem;
-          }
-
-          .panel,
-          .canvas-panel {
-            border-radius: 18px;
-          }
-
-          .panel-header h3,
-          .canvas-panel h3 {
-            font-size: 0.95rem;
-          }
-
-          .category-tabs {
-            padding: 0.75rem 0.75rem 0;
-            gap: 0.4rem;
-          }
-
-          .category-tab {
-            padding: 0.5rem 0.75rem;
-            font-size: 0.85rem;
-            border-radius: 999px;
-          }
-
-          .items-list {
-            gap: 0.6rem;
-            padding: 0.6rem 0.75rem 0.75rem;
-          }
-
-          .item-card {
-            padding: 0.65rem 0.75rem;
-            gap: 0.65rem;
-            border-radius: 16px;
-          }
-
-          .item-card img {
-            width: 44px;
-            height: 44px;
-          }
-
-          .item-card strong {
-            font-size: 0.85rem;
-          }
-
-          .mobile-hint {
-            padding: 0 0.75rem 0.6rem;
-            font-size: 0.8rem;
-            line-height: 1.4;
-          }
-
-          .canvas-body {
-            padding: 0.75rem;
-          }
-
-          .view-switcher {
-            margin-bottom: 0.6rem;
-            gap: 0.4rem;
-          }
-
-          .view-switcher button {
-            padding: 0.55rem 0.9rem;
-            font-size: 0.85rem;
-            border-radius: 999px;
-          }
-
-          .drop-zone {
-            min-height: 340px;
-            border-radius: 18px;
-            padding: 0.75rem;
-            border-width: 2px;
-          }
-
-          .canvas-inner {
-            border-radius: 18px;
-            aspect-ratio: 3 / 4;
-          }
-
-          .canvas-item img {
-            width: 40px;
-            height: 40px;
-            min-width: 40px;
-          }
-
-          .item-card strong {
-            font-size: 0.8rem;
-          }
-
-          .controls button {
-            width: 26px;
-            height: 26px;
-            font-size: 0.8rem;
-            border-radius: 10px;
-          }
-
-          .info-bar {
-            margin-top: 0.6rem;
-            padding: 0.6rem 0.7rem;
-            font-size: 0.8rem;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .drag-editor {
-            padding: 0.6rem;
-            border-radius: 16px;
-          }
-
-          .editor-header {
-            margin-bottom: 0.9rem;
-          }
-
-          .editor-header h2 {
-            font-size: 1.1rem;
-          }
-
-          .editor-subtitle {
-            font-size: 0.8rem;
-            line-height: 1.4;
-          }
-
-          .panel,
-          .canvas-panel {
-            border-radius: 16px;
-          }
-
-          .panel-header {
-            padding: 1rem 0.85rem;
-          }
-
-          .category-tabs {
-            padding: 0.6rem 0.6rem 0;
-            gap: 0.35rem;
-          }
-
-          .category-tab {
-            padding: 0.45rem 0.65rem;
-            font-size: 0.8rem;
-          }
-
-          .items-list {
-            gap: 0.5rem;
-            padding: 0.5rem 0.6rem 0.6rem;
-          }
-
-          .item-card {
-            padding: 0.6rem 0.65rem;
-            gap: 0.6rem;
-          }
-
-          .item-card img {
-            width: 40px;
-            height: 40px;
-            min-width: 40px;
-          }
-
-          .item-card strong {
-            font-size: 0.8rem;
-          }
-
-          .mobile-hint {
-            padding: 0 0.6rem 0.5rem;
-            font-size: 0.75rem;
-          }
-
-          .canvas-body {
-            padding: 0.6rem;
-            min-height: auto;
-          }
-
-          .view-switcher {
-            margin-bottom: 0.5rem;
-            gap: 0.3rem;
-          }
-
-          .view-switcher button {
-            padding: 0.5rem 0.8rem;
-            font-size: 0.8rem;
-          }
-
-          .drop-zone {
-            min-height: 320px;
-            border-radius: 16px;
-            padding: 0.6rem;
-          }
-
-          .canvas-inner {
-            border-radius: 16px;
-          }
-
-          .controls {
-            top: 2px;
-            left: 2px;
-            gap: 0.3rem;
-          }
-
-          .controls button {
-            width: 24px;
-            height: 24px;
-            font-size: 0.75rem;
-            border-radius: 8px;
-          }
-
-          .info-bar {
-            margin-top: 0.5rem;
-            padding: 0.5rem 0.6rem;
-            font-size: 0.75rem;
-          }
         }
       `}</style>
     </div>
   )
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max)
 }

@@ -10,6 +10,9 @@ type OrderCreateRequestBody = {
   customer: CustomerInfo
   items: CartItem[]
   totalPrice: number
+  shippingMethod?: "ppl" | "gls" | "packeta"
+  shippingCost?: number
+  note?: string
 }
 
 type GroupedDecoration = {
@@ -135,7 +138,7 @@ export async function POST(request: Request) {
       customerEmail: body.customer?.email,
     })
 
-    const { customer, items, totalPrice } = body
+    const { customer, items, totalPrice, shippingMethod, note } = body
     if (!customer || !Array.isArray(items) || typeof totalPrice !== "number") {
       return NextResponse.json({ success: false, error: "Chybí data objednávky." }, { status: 400 })
     }
@@ -158,13 +161,16 @@ export async function POST(request: Request) {
         customer_email: customer.email,
         customer_phone: customer.phone,
 
-        delivery_street: street,
+        delivery_street: note ? `${street}\n---\n${note}` : street,
         delivery_street_number: streetNumber,
         delivery_city: customer.city,
         delivery_zip_code: customer.zipCode,
         delivery_country: customer.country,
 
         total_price: totalPrice,
+
+        shipping_method: shippingMethod ?? null,
+        shipping_cost: body.shippingCost ?? null,
 
         editor_state: editorStateForDb,
         items_snapshot: items.map((i) => ({

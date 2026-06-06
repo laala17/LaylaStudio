@@ -8,32 +8,10 @@ import type { CustomerInfo } from "@/lib/order-context"
 import { formatPrice } from "@/lib/products"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
-
-interface GuestInfo {
-  fullName: string
-  email: string
-  phone: string
-  address: string
-  city: string
-  zipCode: string
-  country: string
-}
-
-function buildCustomerInfo(guestInfo: GuestInfo): CustomerInfo {
-  const parts = guestInfo.fullName.trim().split(" ").filter(Boolean)
-  return {
-    firstName: parts[0] || "",
-    lastName: parts.slice(1).join(" ") || "",
-    email: guestInfo.email,
-    phone: guestInfo.phone,
-    street: guestInfo.address,
-    city: guestInfo.city,
-    zipCode: guestInfo.zipCode,
-    country: guestInfo.country,
-  }
-}
+import { StaticSwimwearPreview, SurchargeList } from "@/components/static-swimwear-preview"
 
 export default function CheckoutPage() {
   const router = useRouter()
@@ -41,8 +19,12 @@ export default function CheckoutPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [isQuickOrder, setIsQuickOrder] = useState(false)
   const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [shippingMethod, setShippingMethod] = useState<"ppl" | "gls" | "packeta">("ppl")
+  const [packetaAddress, setPacketaAddress] = useState("")
+  const [packetaError, setPacketaError] = useState(false)
+  const [note, setNote] = useState("")
+  const packetaInputRef = useRef<HTMLInputElement>(null)
 
   const preventCartRedirectRef = useRef(false)
 
@@ -69,18 +51,11 @@ export default function CheckoutPage() {
     country: "Česká republika",
   })
 
-  const [guestData, setGuestData] = useState<GuestInfo>({
-    fullName: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    zipCode: "",
-    country: "Česká republika",
-  })
-
-  const shippingCost = totalPrice >= 1500 ? 0 : 99
+  // Shipping costs
+  const shippingCost = shippingMethod === "packeta" ? 89 : shippingMethod === "gls" ? 94 : 106
   const finalTotal = totalPrice + shippingCost
+
+  const isPacketaInvalid = shippingMethod === "packeta" && !packetaAddress.trim()
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -100,27 +75,60 @@ export default function CheckoutPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleGuestInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setGuestData((prev) => ({ ...prev, [name]: value }))
+  const handlePacketaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPacketaAddress(e.target.value)
+    if (e.target.value.trim()) {
+      setPacketaError(false)
+    }
+  }
+
+  const handleShippingChange = (method: "ppl" | "gls" | "packeta") => {
+    setShippingMethod(method)
+    if (method !== "packeta") {
+      setPacketaAddress("")
+      setPacketaError(false)
+    }
   }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    setIsLoading(false)
+    // Validate Packeta address
+    if (shippingMethod === "packeta" && !packetaAddress.trim()) {
+      setPacketaError(true)
+      packetaInputRef.current?.focus()
+      alert("Chyba: Před dokončením objednávky musíte vyplnit název nebo adresu pobočky Zásilkovny.")
+      return
+    }
+
     setIsSubmitting(true)
     setPaymentError("Začínám zpracování objednávky…")
     preventCartRedirectRef.current = false
 
-    const customerInfo = isQuickOrder ? buildCustomerInfo(guestData) : formData
+    const customerInfo = { ...formData }
+    let finalNote = note
+
+    // If Packeta, prepend branch info to note
+    if (shippingMethod === "packeta" && packetaAddress.trim()) {
+      customerInfo.street = `Zásilkovna: ${packetaAddress.trim()}`
+      customerInfo.city = ""
+      customerInfo.zipCode = ""
+      finalNote = "DOPRAVA ZÁSILKOVNA: " + packetaAddress.trim() + "\n\n" + finalNote
+    }
+
     document.cookie = `userEmail=${encodeURIComponent(customerInfo.email)}; path=/; max-age=31536000; SameSite=Lax`
 
     try {
-      // Optional small delay (keeps UI responsive / avoids double taps)
       await new Promise((resolve) => setTimeout(resolve, 300))
 
-      const orderData = { customer: customerInfo, items, totalPrice: finalTotal }
+      const orderData = {
+        customer: customerInfo,
+        items,
+        totalPrice: finalTotal,
+        shippingMethod,
+        shippingCost,
+        note: finalNote,
+      }
 
       setPaymentError("Ukládám objednávku do databáze…")
       const orderRes = await withTimeout(
@@ -133,7 +141,6 @@ export default function CheckoutPage() {
         "Timeout při ukládání objednávky (/api/orders).",
       )
 
-      // Na mobilu chceme vidět syrovou chybu: pokud status není 200, zaloguj i alertuj.
       const orderJson = (await orderRes.json().catch(() => null)) as { orderId?: string; error?: string } | null
       if (orderRes.status !== 200) {
         throw { source: "/api/orders", status: orderRes.status, response: orderJson }
@@ -146,7 +153,6 @@ export default function CheckoutPage() {
       console.log("Objednávka uložena, ID:", orderId)
       setPaymentError("Objednávka uložena. Přípravuji platbu…")
 
-      // Prevent /kosik redirect while we’re going to Stripe
       preventCartRedirectRef.current = true
       clearCart()
 
@@ -172,8 +178,6 @@ export default function CheckoutPage() {
       window.location.href = checkoutJson.url
     } catch (error) {
       console.error("Chyba při odeslání objednávky:", error)
-
-      // Na mobilu ukážeme syrový error z API.
       window.alert(JSON.stringify(error))
 
       const message =
@@ -197,13 +201,9 @@ export default function CheckoutPage() {
   return (
     <div className="container mx-auto px-4 py-12">
       <nav className="mb-8 text-sm text-muted-foreground">
-        <a href="/" className="hover:text-foreground transition-colors">
-          Domů
-        </a>
+        <a href="/" className="hover:text-foreground transition-colors">Domů</a>
         <span className="mx-2">/</span>
-        <a href="/kosik" className="hover:text-foreground transition-colors">
-          Košík
-        </a>
+        <a href="/kosik" className="hover:text-foreground transition-colors">Košík</a>
         <span className="mx-2">/</span>
         <span className="text-foreground">Pokladna</span>
       </nav>
@@ -214,227 +214,201 @@ export default function CheckoutPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Form */}
           <div className="lg:col-span-2 space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setIsQuickOrder(false)}
-                className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
-                  !isQuickOrder
-                    ? "border-slate-950 bg-slate-950 text-white"
-                    : "border-slate-200 bg-white text-slate-700"
+            {/* ============= SHIPPING SECTION ============= */}
+            <div className="p-6 rounded-xl border border-border bg-card">
+              <h2 className="text-lg font-semibold mb-6">Způsob doručení</h2>
+
+              <div className="space-y-4">
+                <label className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${
+                  shippingMethod === "ppl"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-muted-foreground"
+                }`}>
+                  <input
+                    type="radio"
+                    name="shipping"
+                    value="ppl"
+                    checked={shippingMethod === "ppl"}
+                    onChange={() => handleShippingChange("ppl")}
+                    className="w-4 h-4 text-primary"
+                  />
+                  <div>
+                    <p className="font-medium">Doručení na adresu (PPL)</p>
+                    <p className="text-sm text-muted-foreground">106 Kč</p>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${
+                  shippingMethod === "gls"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-muted-foreground"
+                }`}>
+                  <input
+                    type="radio"
+                    name="shipping"
+                    value="gls"
+                    checked={shippingMethod === "gls"}
+                    onChange={() => handleShippingChange("gls")}
+                    className="w-4 h-4 text-primary"
+                  />
+                  <div>
+                    <p className="font-medium">Doručení na adresu (GLS)</p>
+                    <p className="text-sm text-muted-foreground">94 Kč</p>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-colors ${
+                  shippingMethod === "packeta"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-muted-foreground"
+                }`}>
+                  <input
+                    type="radio"
+                    name="shipping"
+                    value="packeta"
+                    checked={shippingMethod === "packeta"}
+                    onChange={() => handleShippingChange("packeta")}
+                    className="w-4 h-4 text-primary"
+                  />
+                  <div>
+                    <p className="font-medium">Zásilkovna / Z-BOX</p>
+                    <p className="text-sm text-muted-foreground">89 Kč</p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Packeta panel — shown only when Zásilkovna is selected */}
+              <div
+                className={`mt-5 overflow-hidden transition-all duration-300 ${
+                  shippingMethod === "packeta"
+                    ? "max-h-80 opacity-100"
+                    : "max-h-0 opacity-0 pointer-events-none"
                 }`}
               >
-                Plná objednávka
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsQuickOrder(true)}
-                className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
-                  isQuickOrder
-                    ? "border-slate-950 bg-slate-950 text-white"
-                    : "border-slate-200 bg-white text-slate-700"
-                }`}
-              >
-                Rychlá objednávka bez registrace
-              </button>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600">
-              {isQuickOrder ? (
-                <p>
-                  Vyplňte pouze základní údaje a objednávku dokončíte bez registrace. Adresa a e-mail
-                  jsou povinné.
-                </p>
-              ) : (
-                <p>
-                  Plná objednávka zahrnuje kompletní kontaktní údaje a doručovací adresu. Pokud chcete
-                  rychle objednat, zvolte rychlý režim.
-                </p>
-              )}
-            </div>
-
-            {isQuickOrder ? (
-              <div className="space-y-6">
-                <div className="p-6 rounded-xl border border-border bg-card">
-                  <h2 className="text-lg font-semibold mb-6">Rychlá objednávka</h2>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName">Jméno a příjmení *</Label>
-                      <Input
-                        id="fullName"
-                        name="fullName"
-                        value={guestData.fullName}
-                        onChange={handleGuestInputChange}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">E-mail *</Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={guestData.email}
-                        onChange={handleGuestInputChange}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Telefon *</Label>
-                      <Input
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        value={guestData.phone}
-                        onChange={handleGuestInputChange}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="address">Ulice a číslo popisné *</Label>
-                      <Input
-                        id="address"
-                        name="address"
-                        value={guestData.address}
-                        onChange={handleGuestInputChange}
-                        required
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="city">Město *</Label>
-                        <Input
-                          id="city"
-                          name="city"
-                          value={guestData.city}
-                          onChange={handleGuestInputChange}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="zipCode">PSČ *</Label>
-                        <Input
-                          id="zipCode"
-                          name="zipCode"
-                          value={guestData.zipCode}
-                          onChange={handleGuestInputChange}
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="country">Země</Label>
-                      <Input
-                        id="country"
-                        name="country"
-                        value={guestData.country}
-                        onChange={handleGuestInputChange}
-                        disabled
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-6 rounded-xl border border-border bg-card">
-                  <h2 className="text-lg font-semibold mb-6">Způsob platby</h2>
-                  <div className="space-y-4">
-                    <label className="flex items-center gap-4 p-4 rounded-lg border border-primary bg-primary/5 cursor-pointer">
-                      <input type="radio" name="paymentQuick" value="card" defaultChecked className="w-4 h-4 text-primary" />
-                      <div>
-                        <p className="font-medium">Platba kartou</p>
-                        <p className="text-sm text-muted-foreground">Bezpečná platba přes Stripe</p>
-                      </div>
-                    </label>
-
-                    <label className="flex items-center gap-4 p-4 rounded-lg border border-border hover:border-muted-foreground cursor-pointer transition-colors">
-                      <input type="radio" name="paymentQuick" value="transfer" className="w-4 h-4 text-primary" />
-                      <div>
-                        <p className="font-medium">Bankovní převod</p>
-                        <p className="text-sm text-muted-foreground">Platba předem na účet</p>
-                      </div>
-                    </label>
+                <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-4">
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <p>1. Klikněte na tlačítko níže a najděte si na oficiální mapě svůj Z-BOX nebo pobočku.</p>
+                    <p>2. Zkopírujte její název nebo adresu.</p>
+                    <p>3. Vložte zkopírovaný text do pole níže.</p>
                   </div>
 
-                  <p className="text-xs text-muted-foreground mt-4">
-                    * Pro aktivaci online platby přidejte Stripe API klíče
-                  </p>
+                  <a
+                    href="https://www.zasilkovna.cz/pobocky"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#ff6624] text-white font-medium text-sm hover:bg-[#e5551f] transition-colors"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                    Otevřít oficiální mapu Zásilkovny
+                  </a>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="packetaAddress">Název nebo adresa pobočky/boxu:</Label>
+                    <Input
+                      ref={packetaInputRef}
+                      id="packetaAddress"
+                      name="packetaAddress"
+                      value={packetaAddress}
+                      onChange={handlePacketaChange}
+                      placeholder="Např. Z-BOX Hlavní 123, Brno"
+                      className={`w-full ${
+                        packetaError
+                          ? "border-red-500 ring-2 ring-red-200 focus-visible:ring-red-300"
+                          : ""
+                      }`}
+                    />
+                    {packetaError && (
+                      <p className="text-xs text-red-500 font-medium">
+                        Prosím vyplňte název nebo adresu výdejního místa
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="p-6 rounded-xl border border-border bg-card">
-                  <h2 className="text-lg font-semibold mb-6">Kontaktní údaje</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">Jméno *</Label>
-                      <Input id="firstName" name="firstName" value={formData.firstName} onChange={handleInputChange} required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Příjmení *</Label>
-                      <Input id="lastName" name="lastName" value={formData.lastName} onChange={handleInputChange} required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">E-mail *</Label>
-                      <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Telefon *</Label>
-                      <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required />
-                    </div>
-                  </div>
+            </div>
+
+            {/* ============= CONTACT DETAILS ============= */}
+            <div className="p-6 rounded-xl border border-border bg-card">
+              <h2 className="text-lg font-semibold mb-6">Kontaktní údaje</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">Jméno *</Label>
+                  <Input id="firstName" name="firstName" value={formData.firstName} onChange={handleInputChange} required />
                 </div>
-
-                <div className="p-6 rounded-xl border border-border bg-card">
-                  <h2 className="text-lg font-semibold mb-6">Doručovací adresa</h2>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="street">Ulice a číslo popisné *</Label>
-                      <Input id="street" name="street" value={formData.street} onChange={handleInputChange} required />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="city">Město *</Label>
-                        <Input id="city" name="city" value={formData.city} onChange={handleInputChange} required />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="zipCode">PSČ *</Label>
-                        <Input id="zipCode" name="zipCode" value={formData.zipCode} onChange={handleInputChange} required />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="country">Země</Label>
-                      <Input id="country" name="country" value={formData.country} onChange={handleInputChange} disabled />
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Příjmení *</Label>
+                  <Input id="lastName" name="lastName" value={formData.lastName} onChange={handleInputChange} required />
                 </div>
-
-                <div className="p-6 rounded-xl border border-border bg-card">
-                  <h2 className="text-lg font-semibold mb-6">Způsob platby</h2>
-                  <div className="space-y-4">
-                    <label className="flex items-center gap-4 p-4 rounded-lg border border-primary bg-primary/5 cursor-pointer">
-                      <input type="radio" name="payment" value="card" defaultChecked className="w-4 h-4 text-primary" />
-                      <div>
-                        <p className="font-medium">Platba kartou</p>
-                        <p className="text-sm text-muted-foreground">Bezpečná platba přes Stripe</p>
-                      </div>
-                    </label>
-                    <label className="flex items-center gap-4 p-4 rounded-lg border border-border hover:border-muted-foreground cursor-pointer transition-colors">
-                      <input type="radio" name="payment" value="transfer" className="w-4 h-4 text-primary" />
-                      <div>
-                        <p className="font-medium">Bankovní převod</p>
-                        <p className="text-sm text-muted-foreground">Platba předem na účet</p>
-                      </div>
-                    </label>
-                  </div>
-
-                  <p className="text-xs text-muted-foreground mt-4">
-                    * Pro aktivaci online platby přidejte Stripe API klíče
-                  </p>
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-mail *</Label>
+                  <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Telefon *</Label>
+                  <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} required />
                 </div>
               </div>
-            )}
+            </div>
+
+            <div className="p-6 rounded-xl border border-border bg-card">
+              <h2 className="text-lg font-semibold mb-6">Doručovací adresa</h2>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="street">Ulice a číslo popisné *</Label>
+                  <Input id="street" name="street" value={formData.street} onChange={handleInputChange} required />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Město *</Label>
+                    <Input id="city" name="city" value={formData.city} onChange={handleInputChange} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="zipCode">PSČ *</Label>
+                    <Input id="zipCode" name="zipCode" value={formData.zipCode} onChange={handleInputChange} required />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="country">Země</Label>
+                  <Input id="country" name="country" value={formData.country} onChange={handleInputChange} disabled />
+                </div>
+              </div>
+            </div>
+
+            {/* ============= NOTE SECTION ============= */}
+            <div className="p-6 rounded-xl border border-border bg-card">
+              <h2 className="text-lg font-semibold mb-6">Poznámka k objednávce</h2>
+              <div className="space-y-2">
+                <Label htmlFor="note">Poznámka (nepovinné)</Label>
+                <Textarea
+                  id="note"
+                  name="note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Sem můžete napsat jakoukoliv poznámku k objednávce..."
+                  rows={3}
+                  className="w-full resize-y"
+                />
+              </div>
+            </div>
+
+            <div className="p-6 rounded-xl border border-border bg-card">
+              <h2 className="text-lg font-semibold mb-6">Způsob platby</h2>
+              <div className="space-y-4">
+                <label className="flex items-center gap-4 p-4 rounded-lg border border-primary bg-primary/5 cursor-pointer">
+                  <input type="radio" name="payment" value="card" defaultChecked className="w-4 h-4 text-primary" />
+                  <div>
+                    <p className="font-medium">Platba kartou</p>
+                    <p className="text-sm text-muted-foreground">Bezpečná platba přes Stripe</p>
+                  </div>
+                </label>
+                {/* Hidden input keeps the payment logic intact */}
+                <input type="radio" name="payment" value="transfer" className="hidden" />
+              </div>
+            </div>
           </div>
 
           {/* Summary */}
@@ -449,50 +423,60 @@ export default function CheckoutPage() {
               <div className="space-y-4 mb-6">
                 {items.map((item) => (
                   <div key={item.id} className="flex gap-3">
-                    <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                      <Image src={item.product.image} alt={item.product.name} fill className="object-cover" />
-                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
-                        {item.quantity}
-                      </span>
-                    </div>
+                    {item.customization?.exportData ? (
+                      <div className="flex-shrink-0">
+                        <StaticSwimwearPreview exportData={item.customization.exportData} size="sm" />
+                      </div>
+                    ) : (
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                        <Image src={item.product.image} alt={item.product.name} fill className="object-cover" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium line-clamp-1">{item.product.name}</p>
                       <p className="text-xs text-muted-foreground">Vel.: {item.size}</p>
+                      {item.customization?.exportData && (
+                        <div className="mt-1">
+                          <SurchargeList exportData={item.customization.exportData} />
+                        </div>
+                      )}
                       <p className="text-sm font-medium mt-1">{formatPrice(item.product.price * item.quantity)}</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="border-t border-border pt-4 space-y-3 mb-6">
+              <div className="border-t border-border pt-4 space-y-2 mb-6">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Mezisoučet</span>
+                  <span className="text-muted-foreground">Cena produktů</span>
                   <span>{formatPrice(totalPrice)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Doprava</span>
-                  <span>
-                    {shippingCost === 0 ? <span className="text-green-600">Zdarma</span> : formatPrice(shippingCost)}
+                  <span className="text-muted-foreground">
+                    Doprava ({shippingMethod === "ppl" ? "PPL" : shippingMethod === "gls" ? "GLS" : "Zásilkovna"})
                   </span>
+                  <span>{formatPrice(shippingCost)}</span>
                 </div>
-              </div>
-
-              <div className="border-t border-border pt-4 mb-6">
-                <div className="flex justify-between font-semibold text-lg">
-                  <span>Celkem</span>
+                <div className="flex justify-between font-semibold text-base pt-2 border-t border-border">
+                  <span>Celková cena</span>
                   <span>{formatPrice(finalTotal)}</span>
                 </div>
+                {shippingMethod === "packeta" && packetaAddress && (
+                  <div className="text-xs text-muted-foreground pt-1">
+                    <p>Doručení na: {packetaAddress}</p>
+                  </div>
+                )}
               </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                size="lg"
-                disabled={isSubmitting}
-                onClick={() => setPaymentError("Začínám zpracování objednávky…")}
-              >
+              <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || isPacketaInvalid}>
                 {isSubmitting ? "Zpracovávám..." : "Dokončit objednávku"}
               </Button>
+
+              {shippingMethod === "packeta" && isPacketaInvalid && (
+                <p className="text-xs text-red-500 text-center mt-2 font-medium">
+                  Nejprve vyplňte adresu Zásilkovny výše
+                </p>
+              )}
 
               <p className="text-sm text-red-600 text-center mt-3 min-h-[1.25rem]">
                 {paymentError ?? ""}

@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase
     .from("app_orders")
     .select(
-      "id, created_at, status, total_price, customer_first_name, customer_last_name, customer_email, delivery_street, delivery_city, delivery_zip_code, editor_state",
+      "id, created_at, status, total_price, customer_first_name, customer_last_name, customer_email, customer_phone, delivery_street, delivery_street_number, delivery_city, delivery_zip_code, delivery_country, editor_state, shipping_method, shipping_cost",
     )
     .order("created_at", { ascending: false })
 
@@ -28,8 +28,11 @@ export async function GET(request: Request) {
     totalPrice: Number(row.total_price ?? 0),
     customerName: `${row.customer_first_name ?? ""} ${row.customer_last_name ?? ""}`.trim(),
     customerEmail: String(row.customer_email ?? ""),
+    customerPhone: String(row.customer_phone ?? ""),
     address: `${row.delivery_street ?? ""} ${row.delivery_zip_code ?? ""} ${row.delivery_city ?? ""}`.replace(/\s+/g, " ").trim(),
     editorState: row.editor_state,
+    shippingMethod: row.shipping_method ?? null,
+    shippingCost: row.shipping_cost != null ? Number(row.shipping_cost) : null,
   }))
 
   return NextResponse.json({ orders })

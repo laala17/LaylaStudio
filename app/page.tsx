@@ -18,10 +18,10 @@ export default function HomePage() {
 
       <div className="container relative z-10 mx-auto px-4 py-20 text-center">
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-balance mb-6">
-          Elegance pro<br />letní dny
+          LAYALA STUDIO
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 text-pretty">
-          Objevte naši kolekci prémiových plavek. Kvalita, styl a pohodlí v každém kousku.
+          Každý kus vzniká ručně v České republice v limitovaném množství. Originální design, pečlivé zpracování a detaily, které nepřehlédneš.
         </p>
         <Link href="/kategorie/plavky">
           <Button size="lg" className="gap-2">

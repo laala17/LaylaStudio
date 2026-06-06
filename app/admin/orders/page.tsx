@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { AdminEditorView } from "@/components/admin-editor-view"
+import { computePricing } from "@/lib/editor-state"
+import type { DragEditorState } from "@/lib/editor-state"
 
 type AdminOrderStatus = "pending" | "paid" | "shipped" | "delivered"
 
@@ -13,6 +16,7 @@ type AdminOrder = {
   totalPrice: number
   customerName: string
   customerEmail: string
+  customerPhone: string
   address: string
   editorState: {
     background: { frontSrc: string; backSrc: string }
@@ -27,6 +31,28 @@ type AdminOrder = {
       count: number
     }>
   } | null
+  shippingMethod: string | null
+  shippingCost: number | null
+}
+
+function editorStateToDragEditorState(raw: AdminOrder["editorState"]): DragEditorState | null {
+  if (!raw) return null
+  const items = raw.decorations.map((d, idx) => ({
+    id: `dec-${idx}`,
+    src: d.src,
+    name: d.name,
+    left: d.left,
+    top: d.top,
+    width: d.width,
+    height: d.height,
+    view: d.view,
+  }))
+  return {
+    selectedView: "front",
+    background: raw.background,
+    items,
+    pricing: computePricing(items, 0),
+  }
 }
 
 const statusLabels: Record<AdminOrderStatus, string> = {
@@ -62,23 +88,16 @@ function formatDateTime(iso: string) {
   })
 }
 
-function groupDecorationsReadable(editorState: AdminOrder["editorState"]) {
-  if (!editorState) return []
-
-  return editorState.decorations
-    .slice()
-    .sort((a, b) => a.view.localeCompare(b.view) || a.top - b.top || a.left - b.left)
-    .flatMap((d) => {
-      const label = `${d.name} - na pozici X:${Math.round(d.left)}, Y:${Math.round(d.top)}`
-      return [{ key: `${d.view}|${label}|${d.src}`, text: label, count: d.count, view: d.view }]
-    })
-}
-
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const selectedOrder = useMemo(() => orders.find((o) => o.id === selectedOrderId) ?? null, [orders, selectedOrderId])
+
+  const dragEditorState = useMemo(
+    () => editorStateToDragEditorState(selectedOrder?.editorState ?? null),
+    [selectedOrder],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -103,8 +122,6 @@ export default function AdminOrdersPage() {
     }
   }, [])
 
-  const detailLines = useMemo(() => groupDecorationsReadable(selectedOrder?.editorState ?? null), [selectedOrder])
-
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-12 flex justify-center">
@@ -118,11 +135,11 @@ export default function AdminOrdersPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight">Objednávky pro výrobu</h1>
         <p className="text-muted-foreground mt-2">
-          Klikni na „Zobrazit detail pro výrobu“ a uvidíš konfiguraci z editoru v režimu čtení.
+          Klikni na objednávku a uvidíš konfiguraci z editoru v režimu čtení.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_720px] gap-6 items-start">
         <section className="rounded-3xl border border-border bg-card overflow-hidden">
           <div className="p-6 border-b border-border">
             <h2 className="text-lg font-semibold">Seznam objednávek</h2>
@@ -175,81 +192,72 @@ export default function AdminOrdersPage() {
           </div>
         </section>
 
-        <aside className="rounded-3xl border border-border bg-card overflow-hidden lg:sticky lg:top-6">
-          <div className="p-6 border-b border-border">
-            <h2 className="text-lg font-semibold">Detail</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {selectedOrder ? `Objednávka #${selectedOrder.id}` : "Vyber objednávku"}
-            </p>
-          </div>
-
+        <aside className="lg:sticky lg:top-6">
           {!selectedOrder ? (
-            <div className="p-6 text-muted-foreground text-sm">Vyber objednávku ze seznamu.</div>
+            <div className="rounded-3xl border border-border bg-card p-8 text-center text-muted-foreground">
+              Vyber objednávku ze seznamu.
+            </div>
           ) : (
-            <div className="p-6 space-y-6">
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Zákazník</p>
-                <p className="text-sm font-semibold">{selectedOrder.customerName}</p>
-                <p className="text-xs text-muted-foreground break-all">{selectedOrder.customerEmail}</p>
-                <p className="text-sm text-muted-foreground mt-2">Doručení</p>
-                <p className="text-sm">{selectedOrder.address}</p>
-              </div>
+            <div className="space-y-6">
+              <div className="rounded-3xl border border-border bg-card overflow-hidden p-6">
+                <h2 className="text-lg font-semibold mb-1">Detail objednávky #{selectedOrder.id}</h2>
+                <p className="text-xs text-muted-foreground mb-4">{formatDateTime(selectedOrder.createdAt)}</p>
 
-              {/* Read-only "very clear" list */}
-              <div className="space-y-2">
-                <p className="text-sm font-semibold">Co ušít (read-only)</p>
-                {detailLines.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Konfigurace není k dispozici.</p>
-                ) : (
-                  <ul className="space-y-2 text-sm">
-                    {detailLines.map((line) => (
-                      <li key={line.key} className="flex justify-between gap-4">
-                        <span className="text-muted-foreground">
-                          {line.view === "front" ? "Zepředu" : "Zezadu"} · {line.text}
-                        </span>
-                        <span className="font-semibold whitespace-nowrap">{line.count}ks</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              {/* Optional: simple visual preview */}
-              {selectedOrder.editorState ? (
                 <div className="space-y-2">
-                  <p className="text-sm font-semibold">Náhled konfigurace</p>
-                  <div className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden border border-border bg-slate-50">
-                    <div
-                      className="absolute inset-0"
-                      style={{
-                        backgroundImage: `url(${selectedOrder.editorState.background.frontSrc})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        opacity: 0.9,
-                      }}
-                    />
-                    {selectedOrder.editorState.decorations
-                      .filter((d) => d.view === "front")
-                      .map((d) => (
-                        <div
-                          key={`preview-${selectedOrder.id}-${d.src}-${d.left}-${d.top}-${d.width}-${d.height}`}
-                          className="absolute"
-                          style={{
-                            left: d.left,
-                            top: d.top,
-                            width: d.width,
-                            height: d.height,
-                          }}
-                        >
-                          <img src={d.src} alt={d.name} className="w-full h-full object-contain pointer-events-none select-none" />
-                        </div>
-                      ))}
+                  <p className="text-sm text-muted-foreground">Zákazník</p>
+                  <p className="text-sm font-semibold">{selectedOrder.customerName}</p>
+                  <p className="text-xs text-muted-foreground break-all">{selectedOrder.customerEmail}</p>
+                  {selectedOrder.customerPhone && (
+                    <p className="text-xs text-muted-foreground">{selectedOrder.customerPhone}</p>
+                  )}
+
+                  <p className="text-sm text-muted-foreground mt-2">Doručení</p>
+                  <p className="text-sm">{selectedOrder.address}</p>
+
+                  <p className="text-sm text-muted-foreground mt-2">Doprava</p>
+                  <div className="text-sm space-y-1">
+                    {selectedOrder.shippingMethod ? (
+                      <>
+                        <p>
+                          {selectedOrder.shippingMethod === "ppl"
+                            ? "PPL"
+                            : selectedOrder.shippingMethod === "gls"
+                            ? "GLS"
+                            : "Zásilkovna / Z-BOX"}
+                          {selectedOrder.shippingCost != null && ` — ${selectedOrder.shippingCost} Kč`}
+                        </p>
+                        {selectedOrder.shippingMethod === "packeta" && selectedOrder.address.startsWith("Zásilkovna:") && (
+                          <p className="text-xs text-muted-foreground break-all">
+                            {selectedOrder.address.split(" ---")[0]}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-muted-foreground">Neuvedeno</p>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Zobrazen je pouze pohled „Zepředu“ (kvůli rychlému orientačnímu náhledu).
-                  </p>
+
+                  <p className="text-sm text-muted-foreground mt-2">Doplňky</p>
+                  <div className="text-sm space-y-1">
+                    {dragEditorState?.pricing.decorationCounts &&
+                    Object.keys(dragEditorState.pricing.decorationCounts).length > 0 ? (
+                      Object.entries(dragEditorState.pricing.decorationCounts).map(([name, count]) => (
+                        <p key={name}>+{count}× {name}</p>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">Žádné dekorace</p>
+                    )}
+                    {dragEditorState?.pricing.heartCount != null && dragEditorState.pricing.heartCount > 0 && (
+                      <p>+{dragEditorState.pricing.heartCount}× Srdíčko</p>
+                    )}
+                  </div>
+
+                  <p className="text-sm text-muted-foreground mt-2">Celková cena</p>
+                  <p className="text-sm font-semibold">{selectedOrder.totalPrice} Kč</p>
                 </div>
-              ) : null}
+              </div>
+
+              <AdminEditorView editorState={dragEditorState} />
             </div>
           )}
         </aside>
