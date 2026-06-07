@@ -67,13 +67,12 @@ export const products: Product[] = [
     name: "Bikini set BOBINY MIDNIGHT",
     description:
       "Ručně šité bikiny s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
-    price: 1,
+    price: 790,
     image: "/images/IMG_3104.jpeg",
     images: [
       "/images/IMG_3103.jpeg",
       "/images/IMG_3104.jpeg",
       "/images/IMG_3105.jpeg",
-      "/images/IMG_3106.jpeg",
     ],
     category: "plavky",
     sizes: ["XS", "S", "M", "L", "XL"],

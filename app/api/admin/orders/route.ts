@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase
     .from("app_orders")
     .select(
-      "id, created_at, status, total_price, customer_first_name, customer_last_name, customer_email, customer_phone, delivery_street, delivery_street_number, delivery_city, delivery_zip_code, delivery_country, editor_state, shipping_method, shipping_cost",
+      "id, created_at, status, total_price, customer_first_name, customer_last_name, customer_email, customer_phone, delivery_street, delivery_street_number, delivery_city, delivery_zip_code, delivery_country, editor_state, shipping_method, shipping_cost, customer_note",
     )
     .order("created_at", { ascending: false })
 
@@ -33,6 +33,7 @@ export async function GET(request: Request) {
     editorState: row.editor_state,
     shippingMethod: row.shipping_method ?? null,
     shippingCost: row.shipping_cost != null ? Number(row.shipping_cost) : null,
+    customerNote: row.customer_note ?? null,
   }))
 
   return NextResponse.json({ orders })

@@ -161,11 +161,12 @@ export async function POST(request: Request) {
         customer_email: customer.email,
         customer_phone: customer.phone,
 
-        delivery_street: note ? `${street}\n---\n${note}` : street,
+        delivery_street: street,
         delivery_street_number: streetNumber,
         delivery_city: customer.city,
         delivery_zip_code: customer.zipCode,
         delivery_country: customer.country,
+        customer_note: note || null,
 
         total_price: totalPrice,
 

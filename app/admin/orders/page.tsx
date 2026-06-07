@@ -33,6 +33,7 @@ type AdminOrder = {
   } | null
   shippingMethod: string | null
   shippingCost: number | null
+  customerNote: string | null
 }
 
 function editorStateToDragEditorState(raw: AdminOrder["editorState"]): DragEditorState | null {
@@ -262,6 +263,16 @@ export default function AdminOrdersPage() {
                       <p className="text-muted-foreground">Neuvedeno</p>
                     )}
                   </div>
+
+                  {/* Customer note */}
+                  {selectedOrder.customerNote && (
+                    <>
+                      <p className="text-sm text-muted-foreground mt-2">Poznámka zákazníka</p>
+                      <div className="text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 whitespace-pre-wrap break-words">
+                        {selectedOrder.customerNote}
+                      </div>
+                    </>
+                  )}
 
                   <p className="text-sm text-muted-foreground mt-2">Doplňky</p>
                   <div className="text-sm space-y-1">
