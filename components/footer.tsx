@@ -34,26 +34,9 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold mb-4 uppercase tracking-wider">Informace</h4>
-            <ul className="space-y-2">
-              <li>
-                <span className="text-sm text-muted-foreground">O nás</span>
-              </li>
-              <li>
-                <span className="text-sm text-muted-foreground">Doprava a platba</span>
-              </li>
-              <li>
-                <span className="text-sm text-muted-foreground">Reklamace</span>
-              </li>
-            </ul>
-          </div>
-
-          <div>
             <h4 className="text-sm font-semibold mb-4 uppercase tracking-wider">Kontakt</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>info@layalastudio.cz</li>
-              <li>+420 123 456 789</li>
-              <li>Praha, Česká republika</li>
             </ul>
           </div>
         </div>

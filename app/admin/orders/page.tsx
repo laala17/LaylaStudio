@@ -92,6 +92,7 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const selectedOrder = useMemo(() => orders.find((o) => o.id === selectedOrderId) ?? null, [orders, selectedOrderId])
 
   const dragEditorState = useMemo(
@@ -176,13 +177,38 @@ export default function AdminOrdersPage() {
 
                       <div className="flex flex-col items-end gap-2 shrink-0">
                         <p className="font-semibold text-sm">{order.totalPrice} Kč</p>
-                        <Button
-                          type="button"
-                          variant={selectedOrderId === order.id ? "default" : "outline"}
-                          onClick={() => setSelectedOrderId(order.id)}
-                        >
-                          Zobrazit detail pro výrobu
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant={selectedOrderId === order.id ? "default" : "outline"}
+                            onClick={() => setSelectedOrderId(order.id)}
+                          >
+                            Detail
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            disabled={deletingId === order.id}
+                            onClick={async () => {
+                              if (!confirm(`Opravdu chcete smazat objednávku #${order.id}?`)) return
+                              setDeletingId(order.id)
+                              try {
+                                const res = await fetch(`/api/admin/orders/${order.id}`, { method: "DELETE" })
+                                if (!res.ok) throw new Error("Delete failed")
+                                setOrders((prev) => prev.filter((o) => o.id !== order.id))
+                                if (selectedOrderId === order.id) setSelectedOrderId(null)
+                              } catch (e) {
+                                console.error("Delete error:", e)
+                                alert("Nepodařilo se smazat objednávku.")
+                              } finally {
+                                setDeletingId(null)
+                              }
+                            }}
+                          >
+                            {deletingId === order.id ? "..." : "Smazat"}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>

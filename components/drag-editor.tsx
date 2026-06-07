@@ -37,9 +37,10 @@ type PointerState =
 const paletteItems: PaletteItem[] = [
   { id: "velka-masle-1", src: "/images/1.png", name: "Velká mašle", category: "Velké mašle" },
   { id: "velka-masle-2", src: "/images/2.png", name: "Velká mašle", category: "Velké mašle" },
+  { id: "velka-masle-3", src: "/images/3.png", name: "Velká mašle", category: "Velké mašle" },
   { id: "velka-masle-4", src: "/images/4.png", name: "Velká mašle", category: "Velké mašle" },
   { id: "velka-masle-5", src: "/images/5.png", name: "Velká mašle", category: "Velké mašle" },
-  { id: "velka-masle-6", src: "/images/6.png", name: "Velká mašle", category: "Velké mašle" },
+  // 6.png removed on request
   { id: "mala-masle-7", src: "/images/7.png", name: "Malá mašle", category: "Malé mašle" },
   { id: "mala-masle-8", src: "/images/8.png", name: "Malá mašle", category: "Malé mašle" },
   { id: "mala-masle-9", src: "/images/9.png", name: "Malá mašle", category: "Malé mašle" },
@@ -96,7 +97,7 @@ export function DragEditor({
   const pricing = useMemo(() => computePricing(items, heartCount, basePrice), [items, heartCount, basePrice])
 
   // Pomocná funkce pro získání velikosti v PX na základě responzivity, kterou následně přepočítáme na %
-  const getDecorationSizePx = (category?: string) => {
+  const getDecorationSizePx = (category?: string, src?: string) => {
     if (!isMobile) return 96
     if (typeof window === "undefined") return 64
 
@@ -107,6 +108,11 @@ export function DragEditor({
     let multiplier = 1
     if (category === "Malé mašle") multiplier = 1.1
     else if (category === "Velké mašle") multiplier = 1.05
+
+    // Obrázek 3.png je o 30% větší
+    if (src?.includes("3.png")) {
+      multiplier *= 1.3
+    }
 
     return Math.round(base * multiplier)
   }
@@ -154,7 +160,7 @@ export function DragEditor({
     if (!canvasArea) return
 
     const rect = canvasArea.getBoundingClientRect()
-    const sizePx = getDecorationSizePx(parsed.category)
+    const sizePx = getDecorationSizePx(parsed.category, parsed.src)
     
     // Výpočet pozice v pixelech vůči plátnu
     const xPx = event.clientX - rect.left - sizePx / 2
@@ -239,7 +245,7 @@ export function DragEditor({
     if (!canvasArea) return
 
     const rect = canvasArea.getBoundingClientRect()
-    const sizePx = getDecorationSizePx(item.category)
+    const sizePx = getDecorationSizePx(item.category, item.src)
     
     const finalXPx = xPx !== undefined ? xPx : rect.width / 2 - sizePx / 2
     const finalYPx = yPx !== undefined ? yPx : rect.height / 2 - sizePx / 2
@@ -289,7 +295,7 @@ export function DragEditor({
       const canvasArea = canvasAreaRef.current
       if (paletteItem && canvasArea) {
         const rect = canvasArea.getBoundingClientRect()
-        const sizePx = getDecorationSizePx(paletteItem.category)
+        const sizePx = getDecorationSizePx(paletteItem.category, paletteItem.src)
         const xPx = event.clientX - rect.left - sizePx / 2
         const yPx = event.clientY - rect.top - sizePx / 2
         addItemToCanvas(paletteItem, xPx, yPx)
@@ -832,11 +838,12 @@ export function DragEditor({
         }
         .controls {
           position: absolute;
-          top: 4px;
-          left: 4px;
+          top: -14px;
+          right: -14px;
+          left: auto;
           opacity: 0;
           visibility: hidden;
-          z-index: 2;
+          z-index: 10;
         }
         .canvas-item.selected .controls {
           opacity: 1;

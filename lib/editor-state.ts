@@ -36,11 +36,19 @@ export const PRICING = {
   HEART: 5,
 } as const
 
+export type DiscountInfo = {
+  code: string
+  discountType: "percentage" | "fixed"
+  discountValue: number
+  discountAmount: number
+}
+
 export type PricingBreakdown = {
   basePrice: number
   decorationsSurcharge: number
   heartSurcharge: number
   heartCount: number
+  discount: DiscountInfo | null
   totalPrice: number
   decorationCounts: Record<string, number>
 }
@@ -49,6 +57,7 @@ export function computePricing(
   items: DragDecorationItem[],
   heartCount: number,
   basePrice: number = PRICING.BASE_PRICE,
+  discount?: DiscountInfo | null,
 ): PricingBreakdown {
   const decorationCounts: Record<string, number> = {}
 
@@ -66,13 +75,34 @@ export function computePricing(
   }
 
   const heartSurcharge = heartCount * PRICING.HEART
-  const totalPrice = basePrice + decorationsSurcharge + heartSurcharge
+  const subtotal = basePrice + decorationsSurcharge + heartSurcharge
+
+  // Calculate discount
+  let discountInfo: DiscountInfo | null = null
+  if (discount && discount.code) {
+    let discountAmount = 0
+    if (discount.discountType === "percentage") {
+      discountAmount = Math.round(subtotal * (discount.discountValue / 100))
+    } else {
+      // Fixed amount discount (cannot exceed subtotal)
+      discountAmount = Math.min(discount.discountValue, subtotal)
+    }
+    discountInfo = {
+      code: discount.code,
+      discountType: discount.discountType,
+      discountValue: discount.discountValue,
+      discountAmount,
+    }
+  }
+
+  const totalPrice = subtotal - (discountInfo?.discountAmount ?? 0)
 
   return {
     basePrice,
     decorationsSurcharge,
     heartSurcharge,
     heartCount,
+    discount: discountInfo,
     totalPrice,
     decorationCounts,
   }

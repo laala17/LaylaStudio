@@ -6,6 +6,7 @@ import Image from "next/image"
 import { useCart } from "@/lib/cart-context"
 import type { CustomerInfo } from "@/lib/order-context"
 import { formatPrice } from "@/lib/products"
+import { computePricing, type DiscountInfo } from "@/lib/editor-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -25,6 +26,12 @@ export default function CheckoutPage() {
   const [packetaError, setPacketaError] = useState(false)
   const [note, setNote] = useState("")
   const packetaInputRef = useRef<HTMLInputElement>(null)
+
+  // Discount state
+  const [couponCode, setCouponCode] = useState("")
+  const [appliedDiscount, setAppliedDiscount] = useState<DiscountInfo | null>(null)
+  const [couponError, setCouponError] = useState<string | null>(null)
+  const [couponLoading, setCouponLoading] = useState(false)
 
   const preventCartRedirectRef = useRef(false)
 
@@ -53,7 +60,15 @@ export default function CheckoutPage() {
 
   // Shipping costs
   const shippingCost = shippingMethod === "packeta" ? 89 : shippingMethod === "gls" ? 94 : 106
-  const finalTotal = totalPrice + shippingCost
+
+  // Calculate discount on totalPrice (product prices only, not shipping)
+  const discountAmount = appliedDiscount
+    ? appliedDiscount.discountType === "percentage"
+      ? Math.round(totalPrice * (appliedDiscount.discountValue / 100))
+      : Math.min(appliedDiscount.discountValue, totalPrice)
+    : 0
+
+  const finalTotal = totalPrice - discountAmount + shippingCost
 
   const isPacketaInvalid = shippingMethod === "packeta" && !packetaAddress.trim()
 
@@ -90,6 +105,59 @@ export default function CheckoutPage() {
     }
   }
 
+  // Apply coupon
+  const handleApplyCoupon = async () => {
+    const code = couponCode.trim().toUpperCase()
+    if (!code) return
+
+    setCouponLoading(true)
+    setCouponError(null)
+
+    try {
+      const res = await fetch("/api/checkout/validate-coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      })
+
+      const json = await res.json()
+
+      if (!res.ok) {
+        setCouponError(json.error || "Neplatný kód")
+        setAppliedDiscount(null)
+        return
+      }
+
+      // Calculate discount amount immediately for preview
+      let discountAmount = 0
+      if (json.discountType === "percentage") {
+        discountAmount = Math.round(totalPrice * (json.discountValue / 100))
+      } else {
+        discountAmount = Math.min(json.discountValue, totalPrice)
+      }
+
+      setAppliedDiscount({
+        code: json.code,
+        discountType: json.discountType,
+        discountValue: json.discountValue,
+        discountAmount,
+      })
+      setCouponCode(json.code)
+    } catch {
+      setCouponError("Chyba při ověřování kódu")
+      setAppliedDiscount(null)
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  // Remove applied coupon
+  const handleRemoveCoupon = () => {
+    setAppliedDiscount(null)
+    setCouponCode("")
+    setCouponError(null)
+  }
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
@@ -116,6 +184,12 @@ export default function CheckoutPage() {
       finalNote = "DOPRAVA ZÁSILKOVNA: " + packetaAddress.trim() + "\n\n" + finalNote
     }
 
+    // Append discount info to note if applied
+    if (appliedDiscount) {
+      const discountLine = `SLEVOVÝ KÓD: ${appliedDiscount.code} (${appliedDiscount.discountAmount} Kč)`
+      finalNote = finalNote ? discountLine + "\n\n" + finalNote : discountLine
+    }
+
     document.cookie = `userEmail=${encodeURIComponent(customerInfo.email)}; path=/; max-age=31536000; SameSite=Lax`
 
     try {
@@ -128,6 +202,14 @@ export default function CheckoutPage() {
         shippingMethod,
         shippingCost,
         note: finalNote,
+        discount: appliedDiscount
+          ? {
+              code: appliedDiscount.code,
+              discountType: appliedDiscount.discountType,
+              discountValue: appliedDiscount.discountValue,
+              discountAmount: appliedDiscount.discountAmount,
+            }
+          : null,
       }
 
       setPaymentError("Ukládám objednávku do databáze…")
@@ -446,11 +528,63 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
+              {/* ===== COUPON CODE SECTION ===== */}
+              <div className="border-t border-border pt-4 mb-4">
+                <h3 className="text-sm font-semibold mb-3">Slevový kód</h3>
+                {appliedDiscount ? (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-200">
+                    <div>
+                      <p className="text-sm font-medium text-green-700">Kód {appliedDiscount.code} uplatněn</p>
+                      <p className="text-xs text-green-600">
+                        Sleva: {appliedDiscount.discountAmount} Kč
+                        {appliedDiscount.discountType === "percentage" && ` (${appliedDiscount.discountValue}%)`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="text-sm text-red-500 hover:text-red-700 font-medium"
+                    >
+                      Odebrat
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      placeholder="Zadejte kód"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleApplyCoupon}
+                      disabled={couponLoading || !couponCode.trim()}
+                    >
+                      {couponLoading ? "..." : "Použít"}
+                    </Button>
+                  </div>
+                )}
+                {couponError && !appliedDiscount && (
+                  <p className="text-xs text-red-500 mt-1">{couponError}</p>
+                )}
+              </div>
+
               <div className="border-t border-border pt-4 space-y-2 mb-6">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Cena produktů</span>
                   <span>{formatPrice(totalPrice)}</span>
                 </div>
+                {appliedDiscount && discountAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-green-600">
+                      Sleva ({appliedDiscount.code})
+                    </span>
+                    <span className="text-green-600">-{formatPrice(discountAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
                     Doprava ({shippingMethod === "ppl" ? "PPL" : shippingMethod === "gls" ? "GLS" : "Zásilkovna"})

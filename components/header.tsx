@@ -2,11 +2,11 @@
 
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { ShoppingBag, Menu, ArrowLeft, Clock3 } from "lucide-react"
+import { ShoppingBag, Menu, ArrowLeft, Home, Shirt } from "lucide-react"
 import { useCart } from "@/lib/cart-context"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 export function Header() {
   const { totalItems } = useCart()
@@ -16,15 +16,6 @@ export function Header() {
   const isHomePage = pathname === "/"
 
   const [isOpen, setIsOpen] = useState(false)
-
-  // We don’t need /api/auth/verify (customer auth disabled).
-  // Order history is accessible via the `userEmail` cookie set at checkout.
-  const [hasUserEmail, setHasUserEmail] = useState(false)
-
-  useEffect(() => {
-    const match = document.cookie.match(/(?:^|;\s*)userEmail=([^;]+)/)
-    setHasUserEmail(Boolean(match))
-  }, [])
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -39,7 +30,12 @@ export function Header() {
           </Button>
         )}
 
-        {/* Hamburger Menu - always visible on the right */}
+        {/* Logo / brand name in the center */}
+        <Link href="/" className="text-xl font-semibold tracking-tight">
+          LayalaStudio
+        </Link>
+
+        {/* Right side: hamburger menu */}
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon">
@@ -49,16 +45,23 @@ export function Header() {
           </SheetTrigger>
           <SheetContent side="right" className="w-[300px]">
             <nav className="flex flex-col gap-4 mt-8">
-              {hasUserEmail ? (
-                <Link
-                  href="/order-history"
-                  onClick={() => setIsOpen(false)}
-                  className="text-lg font-medium transition-colors hover:text-primary flex items-center gap-2"
-                >
-                  <Clock3 className="h-5 w-5" />
-                  Historie objednávek
-                </Link>
-              ) : null}
+              <Link
+                href="/"
+                onClick={() => setIsOpen(false)}
+                className="text-lg font-medium transition-colors hover:text-primary flex items-center gap-2"
+              >
+                <Home className="h-5 w-5" />
+                Domů
+              </Link>
+
+              <Link
+                href="/kategorie/plavky"
+                onClick={() => setIsOpen(false)}
+                className="text-lg font-medium transition-colors hover:text-primary flex items-center gap-2"
+              >
+                <Shirt className="h-5 w-5" />
+                Plavky
+              </Link>
 
               <Link
                 href="/kosik"
