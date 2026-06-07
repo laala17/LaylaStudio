@@ -6,6 +6,7 @@ import { CartProvider } from '@/lib/cart-context'
 import { OrderProvider } from '@/lib/order-context'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
+import { TrackingProvider } from '@/components/tracking-provider'
 import './globals.css'
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
@@ -39,11 +40,13 @@ export default function RootLayout({
       <body className="font-sans antialiased min-h-screen flex flex-col">
         <CartProvider>
           <OrderProvider>
-            <Header />
-            <main className="flex-1">
-              {children}
-            </main>
-            <Footer />
+            <TrackingProvider>
+              <Header />
+              <main className="flex-1">
+                {children}
+              </main>
+              <Footer />
+            </TrackingProvider>
           </OrderProvider>
         </CartProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}

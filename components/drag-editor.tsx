@@ -869,6 +869,133 @@ export function DragEditor({
           box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
           cursor: pointer;
         }
+
+        /* ===== MOBILE RESPONSIVE ===== */
+        @media (max-width: 767px) {
+          .drag-editor {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 24px;
+          }
+
+          .editor-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+          }
+
+          /* Order: canvas first, panel second */
+          .canvas-panel {
+            order: 0;
+          }
+          .panel {
+            order: 1;
+          }
+
+          /* Canvas body - reduce padding */
+          .canvas-body {
+            padding: 0.75rem;
+            min-height: auto;
+          }
+
+          /* Canvas inner - full width, maintain aspect ratio */
+          .canvas-inner {
+            width: 100%;
+            max-width: 100%;
+          }
+
+          .drop-zone {
+            min-height: 320px;
+          }
+
+          /* Panel decorations - horizontal scroll */
+          .panel .panel-header h3 {
+            font-size: 0.9rem;
+          }
+
+          .items-list {
+            display: flex;
+            flex-direction: row;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+          }
+
+          .items-list::-webkit-scrollbar {
+            height: 4px;
+          }
+          .items-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+          }
+
+          .item-card {
+            flex: 0 0 auto;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.5rem 0.75rem;
+            width: 90px;
+            scroll-snap-align: start;
+            cursor: pointer;
+          }
+
+          .item-card img {
+            width: 48px;
+            height: 48px;
+          }
+
+          .item-card strong {
+            font-size: 0.7rem;
+            text-align: center;
+            line-height: 1.1;
+          }
+
+          .item-card .item-price {
+            font-size: 0.65rem;
+          }
+
+          /* Category tabs - horizontal scroll */
+          .category-tabs {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem 0;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+          }
+          .category-tabs::-webkit-scrollbar {
+            display: none;
+          }
+
+          .category-tab {
+            flex: 0 0 auto;
+            font-size: 0.8rem;
+            padding: 0.5rem 0.75rem;
+            white-space: nowrap;
+          }
+
+          /* Heart section - compact */
+          .heart-section {
+            padding: 0.5rem 1rem;
+          }
+          .heart-icon {
+            width: 36px;
+            height: 36px;
+          }
+          .heart-info strong {
+            font-size: 0.85rem;
+          }
+
+          /* Price widget - compact */
+          .price-widget {
+            padding: 0.75rem 1rem;
+          }
+        }
       `}</style>
     </div>
   )
