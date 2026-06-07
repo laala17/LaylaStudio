@@ -14,7 +14,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Webhook not configured" }, { status: 500 })
     }
 
-    // Read raw body as text — App Router doesn't parse body by default
     const rawBody = await request.text()
     const signature = request.headers.get("stripe-signature")
 
@@ -36,7 +35,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Handle the event
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session
@@ -56,17 +54,21 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ received: true, warning: "Missing orderId" })
         }
 
-        // Update order status in Supabase
         const supabase = getSupabaseServer()
 
-        // Also fetch order details for the email
-        const { data: orderData } = await supabase
+        // Načtení detailů objednávky pro e-mail
+        const { data: orderData, error: fetchError } = await supabase
           .from("app_orders")
           .select("id, customer_first_name, total_price")
           .eq("id", orderId)
           .maybeSingle()
 
+        if (fetchError) {
+          console.error(`Failed to fetch order ${orderId} details:`, fetchError)
+        }
+
         if (paymentStatus === "paid") {
+          // AKTUALIZACE DATABÁZE
           const { error: updateError } = await supabase
             .from("app_orders")
             .update({
@@ -76,13 +78,18 @@ export async function POST(request: NextRequest) {
             .eq("id", orderId)
 
           if (updateError) {
-            console.error("Failed to update order to zaplaceno:", updateError)
-            return NextResponse.json({ error: "Failed to update order" }, { status: 500 })
+            // Pouze zalogujeme chybu, ale NEVRACÍME error 500, aby mohl pokračovat Resend!
+            console.error("DŮLEŽITÉ - Supabase update selhal. Detail chyby:", {
+              code: updateError.code,
+              message: updateError.message,
+              details: updateError.details,
+              hint: updateError.hint
+            })
+          } else {
+            console.log(`Order ${orderId} successfully marked as zaplaceno in DB`)
           }
 
-          console.log(`Order ${orderId} marked as zaplaceno`)
-
-          // Send confirmation email via Resend
+          // ODESLÁNÍ E-MAILU (Běží nezávisle na tom, zda DB prošla)
           if (customerEmail) {
             const customerName = orderData?.customer_first_name || "zákazníku"
             const amountFormatted = orderData?.total_price
@@ -128,21 +135,15 @@ export async function POST(request: NextRequest) {
 
               if (emailResult.error) {
                 console.error("Resend API returned error:", emailResult.error)
-              } else if (emailResult.data?.id) {
-                console.log("Confirmation email sent:", emailResult.data.id)
               } else {
-                console.log("Confirmation email sent (no ID returned)")
+                console.log("Confirmation email triggered successfully via Resend:", emailResult.data?.id)
               }
             } catch (emailError) {
-              // Log but don't fail the webhook — email failure shouldn't block order processing
               console.error("Failed to send confirmation email:", emailError)
             }
           } else {
             console.warn(`No customer email available for order ${orderId}, skipping confirmation email`)
           }
-        } else {
-          // Payment status is e.g. "unpaid" or "no_payment_required"
-          console.log(`Order ${orderId} payment status: ${paymentStatus} (not yet paid)`)
         }
         break
       }
@@ -157,7 +158,6 @@ export async function POST(request: NextRequest) {
         console.log(`Unhandled event type: ${event.type}`)
     }
 
-    // Acknowledge receipt to Stripe
     return NextResponse.json({ received: true })
   } catch (err) {
     console.error("Webhook handler error:", err)
