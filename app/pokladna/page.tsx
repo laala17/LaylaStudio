@@ -59,7 +59,7 @@ export default function CheckoutPage() {
   })
 
   // Shipping costs
-  const shippingCost = shippingMethod === "packeta" ? 89 : shippingMethod === "gls" ? 94 : 106
+  const shippingCost = shippingMethod === "packeta" ? 89 : shippingMethod === "gls" ? 94 : 0
 
   // Calculate discount on totalPrice (product prices only, not shipping)
   const discountAmount = appliedDiscount
@@ -316,7 +316,7 @@ export default function CheckoutPage() {
                   />
                   <div>
                     <p className="font-medium">Doručení na adresu (PPL)</p>
-                    <p className="text-sm text-muted-foreground">106 Kč</p>
+                    <p className="text-sm text-muted-foreground">Zdarma</p>
                   </div>
                 </label>
 
