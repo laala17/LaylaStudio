@@ -1,39 +1,22 @@
-import { NextResponse } from "next/server"
-import Stripe from "stripe"
+import { NextRequest, NextResponse } from "next/server"
+import { getStripe } from "@/lib/stripe"
 import { getSupabaseServer } from "@/lib/supabase-server"
 
 export const runtime = "nodejs"
 
-type CheckoutRequestBody = {
-  orderId: string
-}
-
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json().catch(() => null)) as CheckoutRequestBody | null
+    const body = await request.json().catch(() => null) as { orderId?: string } | null
     if (!body?.orderId) {
       return NextResponse.json({ error: "Chybí orderId." }, { status: 400 })
     }
 
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY
-    if (!stripeSecretKey) {
-      return NextResponse.json({ error: "Chybí STRIPE_SECRET_KEY." }, { status: 500 })
-    }
-
-    const reqOrigin = (() => {
-      try {
-        return new URL(request.url).origin
-      } catch {
-        return null
-      }
-    })()
-
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || reqOrigin || "http://localhost:3000"
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
     const supabase = getSupabaseServer()
     const { data: orderRow, error: orderError } = await supabase
       .from("app_orders")
-      .select("id,total_price,customer_email,customer_first_name,customer_last_name")
+      .select("id, total_price, customer_email, customer_first_name, customer_last_name, status")
       .eq("id", body.orderId)
       .maybeSingle()
 
@@ -45,6 +28,11 @@ export async function POST(request: Request) {
     }
     if (!orderRow) {
       return NextResponse.json({ error: "Objednávka nenalezena." }, { status: 404 })
+    }
+
+    // Don't create a new Stripe session if already paid
+    if (orderRow.status === "zaplaceno") {
+      return NextResponse.json({ error: "Objednávka již byla zaplacena." }, { status: 400 })
     }
 
     // total_price v DB může být numeric/decimal -> normalizuj na číslo
@@ -63,11 +51,10 @@ export async function POST(request: Request) {
       orderId: body.orderId,
       unitAmount,
       currency: "czk",
-      stripeKeyPrefix: stripeSecretKey.slice(0, 7),
       baseUrl,
     })
 
-    const stripe = new Stripe(stripeSecretKey)
+    const stripe = getStripe()
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -79,7 +66,8 @@ export async function POST(request: Request) {
             currency: "czk",
             unit_amount: unitAmount,
             product_data: {
-              name: `Objednávka ${body.orderId}`,
+              name: `Objednávka #${body.orderId}`,
+              description: `Platba za objednávku ${body.orderId} — ${orderRow.customer_first_name} ${orderRow.customer_last_name}`,
             },
           },
           quantity: 1,

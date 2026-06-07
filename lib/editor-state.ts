@@ -27,7 +27,7 @@ export type DragDecorationItemPercent = {
 }
 
 export const PRICING = {
-  BASE_PRICE: 500,
+  BASE_PRICE: 790,
   SURCHARGES: {
     "Velká mašle": 5,
     "Malá mašle": 3,

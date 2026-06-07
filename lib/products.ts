@@ -19,7 +19,7 @@ export const products: Product[] = [
     name: "Bikini set BOBINY BLOSSOM",
     description:
       "Ručně šité bikiny s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
-    price: 1890,
+    price: 790,
     image: "/images/IMG_3096.jpeg",
     images: [
       "/images/IMG_3096.jpeg",
@@ -43,7 +43,7 @@ export const products: Product[] = [
     name: "Bikini set BOBINY STONE",
     description:
       "Ručně šité bikiny s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
-    price: 1590,
+    price: 790,
     image: "/images/IMG_3091.jpeg",
     images: [
       "/images/IMG_3091.jpeg",
@@ -67,7 +67,7 @@ export const products: Product[] = [
     name: "Bikini set BOBINY MIDNIGHT",
     description:
       "Ručně šité bikiny s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
-    price: 2190,
+    price: 1,
     image: "/images/IMG_3104.jpeg",
     images: [
       "/images/IMG_3103.jpeg",
@@ -92,7 +92,7 @@ export const products: Product[] = [
     name: "Bikini set BOBINY CLOUD",
     description:
       "Ručně šité bikiny s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
-    price: 1490,
+    price: 790,
     image: "/images/IMG_3100.jpeg",
     images: [
       "/images/IMG_3100.jpeg",
