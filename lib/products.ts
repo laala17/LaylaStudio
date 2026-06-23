@@ -20,11 +20,10 @@ export const products: Product[] = [
     description:
       "Ručně šité bikiny s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
     price: 790,
-    image: "/images/IMG_3096.jpeg",
+    image: "/images/Blossom3.png",
     images: [
-      "/images/IMG_3096.jpeg",
-      "/images/IMG_3097.jpeg",
-      "/images/IMG_3098.jpeg",
+      "/images/Blossom3.png",
+      "/images/Blossom4.png",
     ],
     category: "plavky",
     sizes: ["XS", "S", "M", "L", "XL"],
@@ -44,11 +43,10 @@ export const products: Product[] = [
     description:
       "Ručně šité bikiny s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
     price: 790,
-    image: "/images/IMG_3091.jpeg",
+    image: "/images/Stone3.png",
     images: [
-      "/images/IMG_3091.jpeg",
-      "/images/IMG_3092.jpeg",
-      "/images/IMG_3093.jpeg",
+      "/images/Stone3.png",
+      "/images/Stone4.png",
     ],
     category: "plavky",
     sizes: ["XS", "S", "M", "L"],
@@ -70,8 +68,8 @@ export const products: Product[] = [
     price: 790,
     image: "/images/IMG_3104.jpeg",
     images: [
-      "/images/IMG_3103.jpeg",
       "/images/IMG_3104.jpeg",
+      "/images/IMG_3103.jpeg",
       "/images/IMG_3105.jpeg",
     ],
     category: "plavky",
@@ -92,11 +90,10 @@ export const products: Product[] = [
     description:
       "Ručně šité bikiny s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
     price: 790,
-    image: "/images/IMG_3100.jpeg",
+    image: "/images/Cloud3.png",
     images: [
-      "/images/IMG_3100.jpeg",
-      "/images/IMG_3101.jpeg",
-      "/images/IMG_3102.jpeg",
+      "/images/Cloud3.png",
+      "/images/Cloud4.png",
    ],
     category: "plavky",
     sizes: ["XS", "S", "M", "L", "XL"],
@@ -109,6 +106,98 @@ export const products: Product[] = [
       "Nesušit v sušičce",
       "Nežehlit",
     
+    ],
+  },
+  {
+    id: "6",
+    name: "Thong set STONE",
+    description:
+      "Ručně šitý thong s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
+    price: 790,
+    image: "/images/Stone1.png",
+    images: [
+      "/images/Stone1.png",
+      "/images/Stone2.png",
+    ],
+    category: "plavky",
+    sizes: ["XS", "S", "M", "L", "XL"],
+    colors: ["Šedá"],
+    inStock: true,
+    material: "Plavky jsou šité z kvalitní sportovní lycry, která se díky své pružnosti dokonale přizpůsobí postavě a poskytuje maximální pohodlí při nošení. Materiál je příjemný na dotek, rychleschnoucí a dlouhodobě si zachovává svůj tvar i vzhled.\n\nSložení: 86 % nylon, 14 % elastan\n\nKaždý kus je ručně šitý a vyráběný na zakázku. Ozdobné detaily se mohou u jednotlivých modelů lišit. Materiál má jemný perleťový lesk, který se může na fotografiích zobrazovat odlišně a nemusí být plně zachycen.",
+    care: [
+      "Ruční praní ve studené vodě",
+      "Nebělit",
+      "Nesušit v sušičce",
+      "Nežehlit",
+    ],
+  },
+  {
+    id: "7",
+    name: "Thong set CLOUD",
+    description:
+      "Ručně šitý thong s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
+    price: 790,
+    image: "/images/Cloude1.png",
+    images: [
+      "/images/Cloude1.png",
+      "/images/Cloude2.png",
+    ],
+    category: "plavky",
+    sizes: ["XS", "S", "M", "L", "XL"],
+    colors: ["Bílá"],
+    inStock: true,
+    material: "Plavky jsou šité z kvalitní sportovní lycry, která se díky své pružnosti dokonale přizpůsobí postavě a poskytuje maximální pohodlí při nošení. Materiál je příjemný na dotek, rychleschnoucí a dlouhodobě si zachovává svůj tvar i vzhled.\n\nSložení: 86 % nylon, 14 % elastan\n\nKaždý kus je ručně šitý a vyráběný na zakázku. Ozdobné detaily se mohou u jednotlivých modelů lišit. Materiál má jemný perleťový lesk, který se může na fotografiích zobrazovat odlišně a nemusí být plně zachycen.",
+    care: [
+      "Ruční praní ve studené vodě",
+      "Nebělit",
+      "Nesušit v sušičce",
+      "Nežehlit",
+    ],
+  },
+  {
+    id: "8",
+    name: "Thong set MIDNIGHT",
+    description:
+      "Ručně šitý thong s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
+    price: 790,
+    image: "/images/Midnight1.png",
+    images: [
+      "/images/Midnight1.png",
+      "/images/Midnight2.png",
+    ],
+    category: "plavky",
+    sizes: ["XS", "S", "M", "L", "XL"],
+    colors: ["Černá"],
+    inStock: true,
+    material: "Plavky jsou šité z kvalitní sportovní lycry, která se díky své pružnosti dokonale přizpůsobí postavě a poskytuje maximální pohodlí při nošení. Materiál je příjemný na dotek, rychleschnoucí a dlouhodobě si zachovává svůj tvar i vzhled.\n\nSložení: 86 % nylon, 14 % elastan\n\nKaždý kus je ručně šitý a vyráběný na zakázku. Ozdobné detaily se mohou u jednotlivých modelů lišit. Materiál má jemný perleťový lesk, který se může na fotografiích zobrazovat odlišně a nemusí být plně zachycen.",
+    care: [
+      "Ruční praní ve studené vodě",
+      "Nebělit",
+      "Nesušit v sušičce",
+      "Nežehlit",
+    ],
+  },
+  {
+    id: "9",
+    name: "Thong set BLOSSOM",
+    description:
+      "Ručně šitý thong s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
+    price: 790,
+    image: "/images/Blossom1.png",
+    images: [
+      "/images/Blossom1.png",
+      "/images/Blossom2.png",
+    ],
+    category: "plavky",
+    sizes: ["XS", "S", "M", "L", "XL"],
+    colors: ["Růžová"],
+    inStock: true,
+    material: "Plavky jsou šité z kvalitní sportovní lycry, která se díky své pružnosti dokonale přizpůsobí postavě a poskytuje maximální pohodlí při nošení. Materiál je příjemný na dotek, rychleschnoucí a dlouhodobě si zachovává svůj tvar i vzhled.\n\nSložení: 86 % nylon, 14 % elastan\n\nKaždý kus je ručně šitý a vyráběný na zakázku. Ozdobné detaily se mohou u jednotlivých modelů lišit. Materiál má jemný perleťový lesk, který se může na fotografiích zobrazovat odlišně a nemusí být plně zachycen.",
+    care: [
+      "Ruční praní ve studené vodě",
+      "Nebělit",
+      "Nesušit v sušičce",
+      "Nežehlit",
     ],
   },
 ]
