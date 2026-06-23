@@ -137,10 +137,10 @@ export const products: Product[] = [
     description:
       "Ručně šitý thong s možností vlastního přizpůsobení. Vyber si velikost a doplňky podle svých představ a vytvoř si jedinečný kousek. ✨",
     price: 790,
-    image: "/images/Cloude1.png",
+    image: "/images/Cloude2.png",
     images: [
-      "/images/Cloude1.png",
       "/images/Cloude2.png",
+      "/images/Cloude1.png",
     ],
     category: "plavky",
     sizes: ["XS", "S", "M", "L", "XL"],
